@@ -62,17 +62,10 @@ functionRegistry.add("IROKOO.GET_ID", {
         const result = this.getters.searchRecords(model, domain);
         console.log("GET_ID avant retour:", result);
 
-        if (!result) {
-            return {
-                value: "",
-                format: "@",
-                requiresRefresh: true,
-            };
-        }
-
         return {
-            value: result,
-            format: "@"
+            value: result.value || "",
+            format: "@",
+            requiresRefresh: result.requiresRefresh,
         };
-    }
+    },
 });
