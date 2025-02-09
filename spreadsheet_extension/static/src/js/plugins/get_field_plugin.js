@@ -33,7 +33,6 @@ export class GetFieldPlugin extends OdooUIPlugin {
      * @returns {any}
      */
     getFieldValue(modelName, recordId, fieldName) {
-        
         const result = this.serverData.batch.get(
             modelName,
             "read",
@@ -46,16 +45,26 @@ export class GetFieldPlugin extends OdooUIPlugin {
             throw new EvaluationError(_t("Record not found"));
         }
 
+        let value;
+        
         // Si le résultat est un objet avec la propriété fieldName
         if (result[fieldName] !== undefined) {
-            return result[fieldName];
+            value = result[fieldName];
         }
-
         // Si le résultat est un tableau
-        if (Array.isArray(result) && result.length > 0 && result[0][fieldName] !== undefined) {
-            return result[0][fieldName];
+        else if (Array.isArray(result) && result.length > 0 && result[0][fieldName] !== undefined) {
+            value = result[0][fieldName];
+        }
+        else {
+            throw new EvaluationError(_t("Field not found"));
         }
 
-        throw new EvaluationError(_t("Field not found"));
+        // Gérer les champs relationnels
+        if (value && typeof value === 'object' && Array.isArray(value)) {
+            // Format many2one: [id, display_name] - on retourne uniquement l'id
+            return value[0];
+        }
+
+        return value;
     }
 }
