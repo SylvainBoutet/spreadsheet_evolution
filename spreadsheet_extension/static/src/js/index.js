@@ -3,27 +3,29 @@
 import { _t } from "@web/core/l10n/translation";
 import * as spreadsheet from "@odoo/o-spreadsheet";
 import { GetFieldPlugin } from "./plugins/get_field_plugin";
-import { getFirstGetFieldFunction, getNumberOfGetFieldFormulas } from "./utils";
+import { SearchPlugin } from "./plugins/search_plugin";
+
 
 const { cellMenuRegistry, featurePluginRegistry } = spreadsheet.registries;
 const { toString } = spreadsheet.helpers;
 
 featurePluginRegistry.add("odooGetField", GetFieldPlugin);
+featurePluginRegistry.add("odooSearch", SearchPlugin);
 
-cellMenuRegistry.add("see_record", {
-    name: _t("See record"),
-    sequence: 176,
+// Ajout du menu contextuel pour GET_ID
+cellMenuRegistry.add("see_records", {
+    name: _t("See records"),
+    sequence: 177,  // Juste après see_record
     async execute(env) {
         const position = env.model.getters.getActivePosition();
         const cell = env.model.getters.getCell(position);
-        const func = getFirstGetFieldFunction(cell.compiledFormula.tokens);
-        const [model, id] = func.args;
+        const ids = cell.value.toString().split(',').map(id => parseInt(id));
         
         const action = {
             type: 'ir.actions.act_window',
-            res_model: toString(model),
-            res_id: parseInt(id),
-            views: [[false, 'form']],
+            res_model: toString(cell.compiledFormula.tokens[1]),  // Le premier argument est le modèle
+            domain: [['id', 'in', ids]],
+            views: [[false, 'list'], [false, 'form']],
             target: 'current',
         };
         await env.services.action.doAction(action);
@@ -31,7 +33,7 @@ cellMenuRegistry.add("see_record", {
     isVisible: (env) => {
         const position = env.model.getters.getActivePosition();
         const cell = env.model.getters.getCell(position);
-        return cell?.isFormula && getNumberOfGetFieldFormulas(cell.compiledFormula.tokens) === 1;
+        return cell?.isFormula && cell.compiledFormula.tokens[0]?.value === "IROKOO.GET_ID";
     },
     icon: "o-spreadsheet-Icon.SEE_RECORDS",
 });

@@ -1,28 +1,39 @@
-/** @odoo-module **/
-// @ts-check
+/** @odoo-module */
 
-import { helpers } from "@odoo/o-spreadsheet";
-const { getFunctionsFromTokens } = helpers;
+import { tokenize } from "@odoo/o-spreadsheet";
 
-/**
- * @typedef {import("@odoo/o-spreadsheet").Token} Token
- * @typedef {import("@spreadsheet/helpers/odoo_functions_helpers").OdooFunctionDescription} OdooFunctionDescription
- */
-
-/**
- * @param {Token[]} tokens
- * @returns {number}
- */
-export function getNumberOfGetFieldFormulas(tokens) {
-    return getFunctionsFromTokens(tokens, ["ODOO.GET_FIELD"]).length;
+export function getFirstGetFieldFunction(tokens) {
+    return getGetFieldFunctions(tokens)[0];
 }
 
-/**
- * Get the first GET_FIELD function description of the given formula.
- *
- * @param {Token[]} tokens
- * @returns {OdooFunctionDescription | undefined}
- */
-export function getFirstGetFieldFunction(tokens) {
-    return getFunctionsFromTokens(tokens, ["ODOO.GET_FIELD"])[0];
+export function getNumberOfGetFieldFormulas(tokens) {
+    return getGetFieldFunctions(tokens).length;
+}
+
+export function getFirstGetIdFunction(tokens) {
+    return getGetIdFunctions(tokens)[0];
+}
+
+export function getNumberOfGetIdFormulas(tokens) {
+    return getGetIdFunctions(tokens).length;
+}
+
+function getGetFieldFunctions(tokens) {
+    const functions = [];
+    for (const token of tokens) {
+        if (token.type === "FUNCTION" && token.value === "IROKOO.GET_FIELD") {
+            functions.push(token);
+        }
+    }
+    return functions;
+}
+
+function getGetIdFunctions(tokens) {
+    const functions = [];
+    for (const token of tokens) {
+        if (token.type === "FUNCTION" && token.value === "IROKOO.GET_ID") {
+            functions.push(token);
+        }
+    }
+    return functions;
 }

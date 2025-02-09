@@ -33,6 +33,7 @@ export class GetFieldPlugin extends OdooUIPlugin {
      * @returns {any}
      */
     getFieldValue(modelName, recordId, fieldName) {
+        
         const result = this.serverData.batch.get(
             modelName,
             "read",
@@ -41,6 +42,7 @@ export class GetFieldPlugin extends OdooUIPlugin {
         );
 
         if (!result) {
+            console.warn("Aucun résultat trouvé");
             throw new EvaluationError(_t("Record not found"));
         }
 
