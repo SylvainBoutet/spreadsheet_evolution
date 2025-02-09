@@ -39,7 +39,17 @@ export class SearchPlugin extends OdooUIPlugin {
         }
     
         try {
-            const cacheKey = `${modelName}-${JSON.stringify(domain)}`;
+            // Convertir les valeurs en entiers pour les champs relationnels
+            const processedDomain = domain.map(condition => {
+                const [field, operator, value] = condition;
+                // Si l'opérateur est "=" et la valeur est une chaîne numérique
+                if (operator === "=" && !isNaN(value)) {
+                    return [field, operator, parseInt(value)];
+                }
+                return condition;
+            });
+
+            const cacheKey = `${modelName}-${JSON.stringify(processedDomain)}`;
             
             if (this._cache.has(cacheKey)) {
                 return { 
@@ -53,15 +63,14 @@ export class SearchPlugin extends OdooUIPlugin {
                 return { value: "", requiresRefresh: true };
             }
 
-            // Lancer la requête
-            const promise = this.serverData.orm.call(modelName, "search", [domain])
+            // Lancer la requête avec le domaine traité
+            const promise = this.serverData.orm.call(modelName, "search", [processedDomain])
                 .then(result => {
                     if (Array.isArray(result)) {
                         const value = result.join(',');
                         this._cache.set(cacheKey, value);
                         this._pendingRequests.delete(cacheKey);
                         
-                        // Forcer la réévaluation
                         if (this.config?.custom?.model) {
                             this.config.custom.model.dispatch("EVALUATE_CELLS");
                         }
