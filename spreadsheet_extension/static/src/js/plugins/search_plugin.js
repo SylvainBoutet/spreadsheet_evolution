@@ -14,8 +14,42 @@ export class SearchPlugin extends OdooUIPlugin {
         super(config);
         /** @type {import("@spreadsheet/data_sources/server_data").ServerData} */
         this._serverData = config.custom.odooDataProvider?.serverData;
-        this._cache = new Map();
-        this._pendingRequests = new Map();
+        this._cache = {};
+        this._promises = {};
+        this._currentCell = null;
+
+        if (config?.custom?.model) {
+            config.custom.model.on('update', this._onUpdate.bind(this));
+            config.custom.model.on('formula_changed', this._onFormulaChanged.bind(this));
+        }
+    }
+
+    _onUpdate(event) {
+        if (event?.type === 'UPDATE_CELL') {
+            const cell = event.cell;
+            const formula = this.getters.getFormula(cell);
+            if (formula && formula.includes('IROKOO.GET_ID')) {
+                console.log("Formula changed:", formula);
+                const oldValue = this._formulaValues.get(cell);
+                if (oldValue !== formula) {
+                    this._formulaValues.set(cell, formula);
+                    this._cache = {};
+                    this._promises = {};
+                    if (this.config?.custom?.model) {
+                        this.config.custom.model.dispatch("EVALUATE_CELLS");
+                    }
+                }
+            }
+        }
+    }
+
+    _onFormulaChanged(event) {
+        console.log("Formula changed event:", event);
+        this._cache = {};
+        this._promises = {};
+        if (this.config?.custom?.model) {
+            this.config.custom.model.dispatch("EVALUATE_CELLS");
+        }
     }
 
     get serverData() {
@@ -32,62 +66,66 @@ export class SearchPlugin extends OdooUIPlugin {
      * @param {string} modelName name of the model
      * @param {Array} domain search domain
      * @param {Object} options options for search, including order
-     * @returns {Object}
+     * @returns {Promise<{value: string, requiresRefresh: boolean}> | {value: string, requiresRefresh: boolean}}
      */
     searchRecords(modelName, domain, options = {}) {
+        console.log("searchRecords called with:", { modelName, domain, options });
+        
+        // Obtenir la cellule active
+        this._currentCell = this.getters.getActiveCell();
+        
         if (!domain) {
             return { value: "", requiresRefresh: false };
         }
     
         try {
-            // Convertir les valeurs en entiers pour les champs relationnels
             const processedDomain = domain.map(condition => {
                 const [field, operator, value] = condition;
-                // Si l'opérateur est "=" et la valeur est une chaîne numérique
                 if (operator === "=" && !isNaN(value)) {
                     return [field, operator, parseInt(value)];
                 }
                 return condition;
             });
 
-            const cacheKey = `${modelName}-${JSON.stringify(processedDomain)}`;
-            
-            if (this._cache.has(cacheKey)) {
-                return { 
-                    value: this._cache.get(cacheKey), 
-                    requiresRefresh: false 
-                };
+            // Inclure la cellule active dans la clé de cache
+            const cacheKey = `${this._currentCell}-${modelName}-${JSON.stringify(processedDomain)}-${JSON.stringify(options)}`;
+
+            if (cacheKey in this._cache) {
+                console.log("Returning cached value:", this._cache[cacheKey]);
+                return { value: this._cache[cacheKey], requiresRefresh: false };
             }
 
-            // Si une requête est déjà en cours, on attend
-            if (this._pendingRequests.has(cacheKey)) {
+            if (cacheKey in this._promises) {
+                console.log("Request pending, returning refresh");
                 return { value: "", requiresRefresh: true };
             }
 
-            // Lancer la requête avec le domaine traité et les options d'ordre
-            const promise = this.serverData.orm.call(modelName, "search", [processedDomain], {
-                order: options.order ? `${options.order[0][0]} ${options.order[0][1]}` : false,
-            })
-                .then(result => {
-                    if (Array.isArray(result)) {
-                        const value = result.join(',');
-                        this._cache.set(cacheKey, value);
-                        this._pendingRequests.delete(cacheKey);
-                        
-                        if (this.config?.custom?.model) {
-                            this.config.custom.model.dispatch("EVALUATE_CELLS");
-                        }
-                    }
+            console.log("Making new request");
+            const promise = this.serverData.orm
+                .call(modelName, "search", [processedDomain], {
+                    order: options.order ? `${options.order[0][0]} ${options.order[0][1]}` : false,
                 })
-                .catch(error => {
+                .then((result) => {
+                    console.log("Got result:", result);
+                    const value = Array.isArray(result) ? result.join(',') : "";
+                    this._cache[cacheKey] = value;
+                    delete this._promises[cacheKey];
+                    
+                    if (this.config?.custom?.model) {
+                        this.config.custom.model.dispatch("EVALUATE_CELLS");
+                    }
+                    
+                    return { value, requiresRefresh: false };
+                })
+                .catch((error) => {
                     console.error("Search error:", error);
-                    this._pendingRequests.delete(cacheKey);
+                    delete this._promises[cacheKey];
+                    return { value: "", requiresRefresh: false };
                 });
 
-            this._pendingRequests.set(cacheKey, promise);
-
+            this._promises[cacheKey] = promise;
             return { value: "", requiresRefresh: true };
-            
+
         } catch (error) {
             console.error("Search error:", error);
             return { value: "", requiresRefresh: false };
@@ -98,14 +136,31 @@ export class SearchPlugin extends OdooUIPlugin {
      * @override
      */
     handle(cmd) {
+        console.log("Handle called with:", cmd.type);
         switch (cmd.type) {
             case "EVALUATE_CELLS":
-                // Forcer la réévaluation si des requêtes sont en attente
-                if (this._pendingRequests.size > 0) {
-                    return true;
+                return Object.keys(this._promises).length > 0;
+            case "UPDATE_CELL":
+                // Vider uniquement le cache pour la cellule modifiée
+                if (cmd.cell) {
+                    const cellCache = Object.keys(this._cache).filter(key => key.startsWith(cmd.cell));
+                    cellCache.forEach(key => delete this._cache[key]);
+                    const cellPromises = Object.keys(this._promises).filter(key => key.startsWith(cmd.cell));
+                    cellPromises.forEach(key => delete this._promises[key]);
                 }
-                break;
+                return true;
         }
         return false;
+    }
+
+    /**
+     * @override
+     */
+    destroy() {
+        if (this.config?.custom?.model) {
+            this.config.custom.model.off('update', this._onUpdate);
+            this.config.custom.model.off('formula_changed', this._onFormulaChanged);
+        }
+        super.destroy();
     }
 }
