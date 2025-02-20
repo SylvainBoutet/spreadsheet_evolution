@@ -4,13 +4,14 @@ import { _t } from "@web/core/l10n/translation";
 import * as spreadsheet from "@odoo/o-spreadsheet";
 import { GetFieldPlugin } from "./plugins/get_field_plugin";
 import { SearchPlugin } from "./plugins/search_plugin";
+import { IrokooSumPlugin } from "./plugins/irokoo_sum";
 
-
-const { cellMenuRegistry, featurePluginRegistry } = spreadsheet.registries;
+const { cellMenuRegistry, featurePluginRegistry, uiPluginRegistry } = spreadsheet.registries;
 const { toString } = spreadsheet.helpers;
 
 featurePluginRegistry.add("odooGetField", GetFieldPlugin);
 featurePluginRegistry.add("odooSearch", SearchPlugin);
+featurePluginRegistry.add("irokoo_sum_plugin", IrokooSumPlugin);
 
 // Ajout du menu contextuel pour GET_ID
 cellMenuRegistry.add("see_records", {

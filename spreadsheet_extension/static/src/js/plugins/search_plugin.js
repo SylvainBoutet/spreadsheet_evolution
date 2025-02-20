@@ -31,9 +31,10 @@ export class SearchPlugin extends OdooUIPlugin {
      * Search records based on domain
      * @param {string} modelName name of the model
      * @param {Array} domain search domain
+     * @param {Object} options options for search, including order
      * @returns {Object}
      */
-    searchRecords(modelName, domain) {
+    searchRecords(modelName, domain, options = {}) {
         if (!domain) {
             return { value: "", requiresRefresh: false };
         }
@@ -63,8 +64,10 @@ export class SearchPlugin extends OdooUIPlugin {
                 return { value: "", requiresRefresh: true };
             }
 
-            // Lancer la requête avec le domaine traité
-            const promise = this.serverData.orm.call(modelName, "search", [processedDomain])
+            // Lancer la requête avec le domaine traité et les options d'ordre
+            const promise = this.serverData.orm.call(modelName, "search", [processedDomain], {
+                order: options.order ? `${options.order[0][0]} ${options.order[0][1]}` : false,
+            })
                 .then(result => {
                     if (Array.isArray(result)) {
                         const value = result.join(',');
