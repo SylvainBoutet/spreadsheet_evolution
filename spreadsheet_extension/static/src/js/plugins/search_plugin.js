@@ -104,6 +104,7 @@ export class SearchPlugin extends OdooUIPlugin {
             const promise = this.serverData.orm
                 .call(modelName, "search", [processedDomain], {
                     order: options.order ? `${options.order[0][0]} ${options.order[0][1]}` : false,
+                    limit: options.limit || false,
                 })
                 .then((result) => {
                     console.log("Got result:", result);

@@ -37,6 +37,7 @@ functionRegistry.add("IROKOO.GET_ID", {
         arg("model (string)", _t("The technical model name (e.g. 'res.partner')")),
         arg("order (string)", _t("Field to order by")),
         arg("direction (string)", _t("Order direction (e.g. 'asc', 'desc')")),
+        arg("limit (number)", _t("Maximum number of records to return (0 for no limit)")),
         arg("field1 (string)", _t("First field to search on")),
         arg("operator1 (string)", _t("First operator (e.g. 'ilike', '=', '>', '<')")),
         arg("value1 (string)", _t("First value to search for")),
@@ -44,16 +45,17 @@ functionRegistry.add("IROKOO.GET_ID", {
     category: "Odoo",
     returns: ["STRING"],
     compute: function (...args) {
-        if (args.length < 6 || (args.length - 3) % 3 !== 0) {
+        if (args.length < 7 || (args.length - 4) % 3 !== 0) {
             throw new EvaluationError(_t("Invalid number of arguments"));
         }
     
         const model = toString(args[0]);
         const orderField = toString(args[1]);
         const orderDirection = toString(args[2]);
+        const limit = toNumber(args[3], this.locale);
         const domain = [];
     
-        for (let i = 3; i < args.length; i += 3) {
+        for (let i = 4; i < args.length; i += 3) {
             const field = toString(args[i]);
             const operator = toString(args[i + 1]);
             const value = toString(args[i + 2]);
@@ -63,9 +65,12 @@ functionRegistry.add("IROKOO.GET_ID", {
             }
         }
     
-        const result = this.getters.searchRecords(model, domain, { order: [[orderField, orderDirection]] });
+        const result = this.getters.searchRecords(model, domain, { 
+            order: [[orderField, orderDirection]],
+            limit: limit > 0 ? limit : false
+        });
+        
         console.log("GET_ID avant retour:", result);
-
         return {
             value: result.value || "",
             format: "@",
