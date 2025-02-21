@@ -17,6 +17,10 @@ export class SearchPlugin extends OdooUIPlugin {
         this._cache = {};
         this._promises = {};
         this._currentCell = null;
+        this.isInitialized = false;
+        this.pendingRequests = new Map();
+        this.cachedResults = new Map();
+        this.dataReady = false;
 
         if (config?.custom?.model) {
             config.custom.model.on('update', this._onUpdate.bind(this));
@@ -164,4 +168,53 @@ export class SearchPlugin extends OdooUIPlugin {
         }
         super.destroy();
     }
+
+    async compute(formula) {
+        const [action, ...args] = formula;
+        console.log(`${action} args:`, args);
+
+        if (!this.dataReady) {
+            // Simuler le comportement de GET_FIELD pour déclencher l'affichage
+            if (!this.isInitialized) {
+                this._initializeData();
+            }
+            return { value: '', requiresRefresh: true };
+        }
+
+        switch (action) {
+            case 'GET_ID':
+                const idArgs = this._processArgs(args);
+                return this._getId(idArgs);
+            case 'GET_SUM':
+                const sumArgs = this._processArgs(args);
+                return this._getSum(sumArgs);
+            default:
+                return this._performSearch(...args);
+        }
+    }
+
+    async _initializeData() {
+        if (this.isInitialized) return;
+        this.isInitialized = true;
+
+        try {
+            await Promise.all([
+                this._loadSaleOrders(),
+                this._loadPartners(),
+            ]);
+            
+            this.dataReady = true;
+            this._refreshAllData();
+        } catch (error) {
+            console.error("Error initializing data:", error);
+            this.isInitialized = false;
+        }
+    }
+
+    _refreshAllData() {
+        // Déclencher un rafraîchissement global
+        this.trigger('REFRESH');
+    }
+
+    // ... rest of the code ...
 }

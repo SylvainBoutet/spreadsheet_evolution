@@ -71,6 +71,12 @@ functionRegistry.add("IROKOO.GET_ID", {
         });
         
         console.log("GET_ID avant retour:", result);
+        
+        if (!result.value) {
+            console.warn("Aucun ID trouvé pour GET_ID");
+            return { value: "", requiresRefresh: true };
+        }
+
         return {
             value: result.value || "",
             format: "@",
@@ -100,10 +106,17 @@ functionRegistry.add("IROKOO.GET_SUM", {
         const ids = toString(args[2]);
 
         console.log("GET_SUM processed args:", { model, field, ids });
-
         const result = this.getters.sumRecords(model, field, ids);
-        console.log("GET_SUM result:", result);
-
-        return result;
-    },
+        
+        // Si on a besoin d'un refresh, on propage cette info
+        if (result.requiresRefresh) {
+            return { value: result.value, requiresRefresh: true };
+        }
+        
+        // Sinon on retourne la valeur formatée
+        return {
+            value: result.value,
+            format: "#,##0.00", // Format nombre avec 2 décimales
+        };
+    }
 });

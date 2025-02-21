@@ -6,7 +6,7 @@ import { OdooUIPlugin } from "@spreadsheet/plugins";
 import { _t } from "@web/core/l10n/translation";
 import { toString } from "@spreadsheet/helpers/helpers";
 
-export class IrokooSumPlugin extends OdooUIPlugin {
+export class SumPlugin extends OdooUIPlugin {
     static getters = /** @type {const} */ ([
         "sumRecords",
     ]);
@@ -14,7 +14,7 @@ export class IrokooSumPlugin extends OdooUIPlugin {
     constructor(config) {
         super(config);
         /** @type {import("@spreadsheet/data_sources/server_data").ServerData} */
-        this._serverData = config.custom.odooDataProvider?.serverData;
+        this._serverData = config?.custom?.odooDataProvider?.serverData;
         this._cache = new Map();
         this._pendingRequests = new Map();
     }
@@ -90,10 +90,7 @@ export class IrokooSumPlugin extends OdooUIPlugin {
                 this._cache.set(cacheKey, sum);
                 this._pendingRequests.delete(cacheKey);
                 
-                if (this.config?.custom?.model) {
-                    console.log("Dispatching EVALUATE_CELLS");
-                    this.config.custom.model.dispatch("EVALUATE_CELLS");
-                }
+                this.dispatch("EVALUATE_CELLS");
             })
             .catch(error => {
                 console.error("ORM call error:", error);
