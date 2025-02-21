@@ -36,8 +36,6 @@ export class SumPlugin extends OdooUIPlugin {
      * @returns {Object}
      */
     sumRecords(modelName, fieldName, ids) {
-        console.log("=== sumRecords START ===");
-        console.log("Raw inputs:", { modelName, fieldName, ids });
 
         if (!modelName || !fieldName || !ids) {
             console.log("Missing required parameters");
@@ -54,11 +52,8 @@ export class SumPlugin extends OdooUIPlugin {
             }
 
             const domain = [['id', 'in', idList]];
-            console.log("Search domain:", domain);
-
             const cacheKey = `${modelName}-${fieldName}-${ids}`;
-            console.log("Cache key:", cacheKey);
-            
+
             if (this._cache.has(cacheKey)) {
                 const cachedValue = this._cache.get(cacheKey);
                 console.log("Returning cached value:", cachedValue);
@@ -69,40 +64,33 @@ export class SumPlugin extends OdooUIPlugin {
             }
 
             if (this._pendingRequests.has(cacheKey)) {
-                console.log("Request pending, returning temporary value");
                 return { value: 0, requiresRefresh: true };
             }
 
-            console.log("Making ORM call to search_read");
             const promise = this.serverData.orm.call(modelName, "search_read", [
                 domain,
                 [fieldName]
             ])
             .then(records => {
-                console.log("Received records:", records);
                 const sum = records.reduce((acc, record) => {
                     console.log("Current record:", record);
                     console.log("Current field value:", record[fieldName]);
                     return acc + (parseFloat(record[fieldName]) || 0);
                 }, 0);
                 
-                console.log("Calculated sum:", sum);
                 this._cache.set(cacheKey, sum);
                 this._pendingRequests.delete(cacheKey);
                 
                 this.dispatch("EVALUATE_CELLS");
             })
             .catch(error => {
-                console.error("ORM call error:", error);
                 this._pendingRequests.delete(cacheKey);
             });
 
             this._pendingRequests.set(cacheKey, promise);
-            console.log("Request pending, returning temporary value");
             return { value: 0, requiresRefresh: true };
             
         } catch (error) {
-            console.error("Unexpected error in sumRecords:", error);
             return { value: 0, requiresRefresh: false };
         }
     }
