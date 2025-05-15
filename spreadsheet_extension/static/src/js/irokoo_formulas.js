@@ -64,7 +64,22 @@ functionRegistry.add("IROKOO.GET_IDS", {
                 domain.push([field, operator, value]);
             }
         }
-    
+        
+        // ASTUCE: Simuler un appel à GET_FIELD pour initialiser ce qui est nécessaire
+        // Nous utilisons un appel avec ID 1 qui devrait exister dans la plupart des modèles
+        try {
+            if (this.getters && this.getters.getFieldValue) {
+                // Appel "caché" à getFieldValue pour assurer l'initialisation
+                console.log("GET_IDS - Simulation d'un appel à getFieldValue pour initialisation");
+                // On choisit "name" comme champ car il existe dans la plupart des modèles
+                const initResult = this.getters.getFieldValue(model, 1, "name");
+                console.log("GET_IDS - Résultat de l'initialisation:", initResult);
+            }
+        } catch (e) {
+            // On ignore les erreurs de ce faux appel, on veut juste l'effet secondaire
+            console.log("GET_IDS - L'initialisation via getFieldValue a échoué, mais on continue");
+        }
+        
         const result = this.getters.searchRecords(model, domain, { 
             order: [[orderField, orderDirection]],
             limit: limit > 0 ? limit : false
@@ -104,7 +119,28 @@ functionRegistry.add("IROKOO.GET_SUM", {
         const model = toString(args[0]);
         const field = toString(args[1]);
         const ids = toString(args[2]);
-
+        
+        // ASTUCE: Simuler un appel à GET_FIELD pour initialiser ce qui est nécessaire
+        try {
+            if (this.getters && this.getters.getFieldValue) {
+                // Appel "caché" à getFieldValue pour assurer l'initialisation
+                console.log("GET_SUM - Simulation d'un appel à getFieldValue pour initialisation");
+                // Prendre le premier ID de la liste pour l'initialisation
+                const firstId = ids.split(',')[0];
+                if (firstId && !isNaN(parseInt(firstId))) {
+                    const initResult = this.getters.getFieldValue(model, parseInt(firstId), field);
+                    console.log("GET_SUM - Résultat de l'initialisation:", initResult);
+                } else {
+                    // Fallback sur ID 1
+                    const initResult = this.getters.getFieldValue(model, 1, "name");
+                    console.log("GET_SUM - Résultat de l'initialisation (fallback):", initResult);
+                }
+            }
+        } catch (e) {
+            // On ignore les erreurs de ce faux appel, on veut juste l'effet secondaire
+            console.log("GET_SUM - L'initialisation via getFieldValue a échoué, mais on continue");
+        }
+        
         console.log("GET_SUM processed args:", { model, field, ids });
         const result = this.getters.sumRecords(model, field, ids);
         
