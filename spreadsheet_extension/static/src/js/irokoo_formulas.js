@@ -31,7 +31,7 @@ functionRegistry.add("IROKOO.GET_FIELD", {
     },
 });
 
-functionRegistry.add("IROKOO.GET_ID", {
+functionRegistry.add("IROKOO.GET_IDS", {
     description: _t("Get IDs from a model based on domain conditions"),
     args: [
         arg("model (string)", _t("The technical model name (e.g. 'res.partner')")),
@@ -70,10 +70,10 @@ functionRegistry.add("IROKOO.GET_ID", {
             limit: limit > 0 ? limit : false
         });
         
-        console.log("GET_ID avant retour:", result);
+        console.log("GET_IDS avant retour:", result);
         
         if (!result.value) {
-            console.warn("Aucun ID trouvé pour GET_ID");
+            console.warn("Aucun ID trouvé pour GET_IDS");
             return { value: "", requiresRefresh: true };
         }
 
@@ -86,11 +86,11 @@ functionRegistry.add("IROKOO.GET_ID", {
 });
 
 functionRegistry.add("IROKOO.GET_SUM", {
-    description: _t("Sum a field for records returned by IROKOO.GET_ID"),
+    description: _t("Sum a field for records returned by IROKOO.GET_IDS"),
     args: [
         arg("model (string)", _t("The technical model name (e.g. 'res.partner')")),
         arg("field (string)", _t("The field to sum")),
-        arg("ids (string)", _t("Comma-separated list of IDs (from IROKOO.GET_ID)")),
+        arg("ids (string)", _t("Comma-separated list of IDs (from IROKOO.GET_IDS)")),
     ],
     category: "Odoo",
     returns: ["NUMBER"],

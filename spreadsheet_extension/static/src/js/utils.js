@@ -20,18 +20,18 @@ function getGetFieldFunctions(tokens) {
     return functions;
 }
 
-export function getFirstGetIdFunction(tokens) {
-    return getGetIdFunctions(tokens)[0];
+export function getFirstGetIdsFunction(tokens) {
+    return getGetIdsFunctions(tokens)[0];
 }
 
-export function getNumberOfGetIdFormulas(tokens) {
-    return getGetIdFunctions(tokens).length;
+export function getNumberOfGetIdsFormulas(tokens) {
+    return getGetIdsFunctions(tokens).length;
 }
 
-function getGetIdFunctions(tokens) {
+function getGetIdsFunctions(tokens) {
     const functions = [];
     for (const token of tokens) {
-        if (token.type === "FUNCTION" && token.value === "IROKOO.GET_ID") {
+        if (token.type === "FUNCTION" && token.value === "IROKOO.GET_IDS") {
             functions.push(token);
         }
     }

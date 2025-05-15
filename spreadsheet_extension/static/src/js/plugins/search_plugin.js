@@ -21,6 +21,7 @@ export class SearchPlugin extends OdooUIPlugin {
         this.pendingRequests = new Map();
         this.cachedResults = new Map();
         this.dataReady = false;
+        this._formulaValues = new Map();
 
         if (config?.custom?.model) {
             config.custom.model.on('update', this._onUpdate.bind(this));
@@ -32,7 +33,7 @@ export class SearchPlugin extends OdooUIPlugin {
         if (event?.type === 'UPDATE_CELL') {
             const cell = event.cell;
             const formula = this.getters.getFormula(cell);
-            if (formula && formula.includes('IROKOO.GET_ID')) {
+            if (formula && formula.includes('IROKOO.GET_IDS')) {
                 console.log("Formula changed:", formula);
                 const oldValue = this._formulaValues.get(cell);
                 if (oldValue !== formula) {
@@ -182,15 +183,66 @@ export class SearchPlugin extends OdooUIPlugin {
         }
 
         switch (action) {
-            case 'GET_ID':
+            case 'GET_IDS':
                 const idArgs = this._processArgs(args);
-                return this._getId(idArgs);
+                return this._getIds(idArgs);
             case 'GET_SUM':
                 const sumArgs = this._processArgs(args);
                 return this._getSum(sumArgs);
             default:
                 return this._performSearch(...args);
         }
+    }
+
+    /**
+     * Traite la fonction GET_IDS pour obtenir les IDs correspondant aux critères
+     * @param {Object} args Arguments pour la recherche
+     * @returns {Object} Résultat de la recherche
+     */
+    _getIds(args) {
+        const { model, order, direction, limit, domain } = args;
+        
+        console.log("_getIds called with:", args);
+        
+        return this.searchRecords(model, domain, {
+            order: [[order, direction]],
+            limit: limit > 0 ? limit : false,
+        });
+    }
+
+    /**
+     * Traite les arguments d'une formule
+     * @param {Array} args Arguments à traiter
+     * @returns {Object} Arguments formatés
+     */
+    _processArgs(args) {
+        // Pour GET_IDS
+        if (args.length >= 4) {
+            const [model, order, direction, limit, ...domainArgs] = args;
+            const domain = [];
+            
+            for (let i = 0; i < domainArgs.length; i += 3) {
+                if (i + 2 < domainArgs.length) {
+                    const field = domainArgs[i];
+                    const operator = domainArgs[i + 1];
+                    const value = domainArgs[i + 2];
+                    
+                    if (field && operator && value) {
+                        domain.push([field, operator, value]);
+                    }
+                }
+            }
+            
+            return { model, order, direction, limit, domain };
+        }
+        
+        // Pour GET_SUM
+        if (args.length === 3) {
+            const [model, field, ids] = args;
+            return { model, field, ids };
+        }
+        
+        return {};
     }
 
     async _initializeData() {
@@ -216,5 +268,12 @@ export class SearchPlugin extends OdooUIPlugin {
         this.trigger('REFRESH');
     }
 
-    // ... rest of the code ...
+    // Helper methods for loading data
+    async _loadSaleOrders() {
+        // Implementation if needed
+    }
+    
+    async _loadPartners() {
+        // Implementation if needed
+    }
 }
