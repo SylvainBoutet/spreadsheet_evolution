@@ -22,11 +22,44 @@ export class SearchPlugin extends OdooUIPlugin {
         this.cachedResults = new Map();
         this.dataReady = false;
         this._formulaValues = new Map();
+        this._refreshTimerId = null;
 
         if (config?.custom?.model) {
             config.custom.model.on('update', this._onUpdate.bind(this));
             config.custom.model.on('formula_changed', this._onFormulaChanged.bind(this));
+            
+            // S'enregistrer aux événements de Spreadsheet
+            this.config = config;
+            config.custom.model.addEventListener("user-selection-changed", this._onSelectionChanged.bind(this));
         }
+    }
+
+    /**
+     * Appelé lorsque la sélection change dans la feuille
+     * Peut aider à déclencher des rafraîchissements
+     */
+    _onSelectionChanged() {
+        // Vérifier s'il y a des promesses en attente et forcer une réévaluation
+        if (Object.keys(this._promises).length > 0) {
+            this._scheduleRefresh();
+        }
+    }
+
+    /**
+     * Planifie un refresh différé pour éviter trop d'appels consécutifs
+     */
+    _scheduleRefresh() {
+        if (this._refreshTimerId) {
+            clearTimeout(this._refreshTimerId);
+        }
+        
+        this._refreshTimerId = setTimeout(() => {
+            if (this.config?.custom?.model) {
+                this.config.custom.model.dispatch("EVALUATE_CELLS");
+                console.log("Scheduled refresh triggered");
+            }
+            this._refreshTimerId = null;
+        }, 100);
     }
 
     _onUpdate(event) {
@@ -38,10 +71,14 @@ export class SearchPlugin extends OdooUIPlugin {
                 const oldValue = this._formulaValues.get(cell);
                 if (oldValue !== formula) {
                     this._formulaValues.set(cell, formula);
-                    this._cache = {};
-                    this._promises = {};
+                    // Nettoyer le cache spécifique à cette cellule
+                    const cellCache = Object.keys(this._cache).filter(key => key.startsWith(cell));
+                    cellCache.forEach(key => delete this._cache[key]);
+                    const cellPromises = Object.keys(this._promises).filter(key => key.startsWith(cell));
+                    cellPromises.forEach(key => delete this._promises[key]);
+                    
                     if (this.config?.custom?.model) {
-                        this.config.custom.model.dispatch("EVALUATE_CELLS");
+                        this._scheduleRefresh();
                     }
                 }
             }
@@ -50,10 +87,11 @@ export class SearchPlugin extends OdooUIPlugin {
 
     _onFormulaChanged(event) {
         console.log("Formula changed event:", event);
-        this._cache = {};
-        this._promises = {};
+        // Ne pas vider le cache complet, sinon on perd toutes les données
+        // this._cache = {};
+        // this._promises = {};
         if (this.config?.custom?.model) {
-            this.config.custom.model.dispatch("EVALUATE_CELLS");
+            this._scheduleRefresh();
         }
     }
 
@@ -117,9 +155,9 @@ export class SearchPlugin extends OdooUIPlugin {
                     this._cache[cacheKey] = value;
                     delete this._promises[cacheKey];
                     
-                    if (this.config?.custom?.model) {
-                        this.config.custom.model.dispatch("EVALUATE_CELLS");
-                    }
+                    // Déclencher une évaluation avec un délai pour s'assurer que
+                    // toutes les promesses en cours sont terminées
+                    this._scheduleRefresh();
                     
                     return { value, requiresRefresh: false };
                 })
@@ -145,7 +183,12 @@ export class SearchPlugin extends OdooUIPlugin {
         console.log("Handle called with:", cmd.type);
         switch (cmd.type) {
             case "EVALUATE_CELLS":
-                return Object.keys(this._promises).length > 0;
+                // S'il y a des promesses en attente, on renvoie true pour 
+                // indiquer qu'on souhaite re-déclencher une évaluation
+                if (Object.keys(this._promises).length > 0) {
+                    return true;
+                }
+                break;
             case "UPDATE_CELL":
                 // Vider uniquement le cache pour la cellule modifiée
                 if (cmd.cell) {
@@ -154,7 +197,7 @@ export class SearchPlugin extends OdooUIPlugin {
                     const cellPromises = Object.keys(this._promises).filter(key => key.startsWith(cmd.cell));
                     cellPromises.forEach(key => delete this._promises[key]);
                 }
-                return true;
+                return false; // Permet de continuer le traitement
         }
         return false;
     }
@@ -163,9 +206,14 @@ export class SearchPlugin extends OdooUIPlugin {
      * @override
      */
     destroy() {
+        if (this._refreshTimerId) {
+            clearTimeout(this._refreshTimerId);
+        }
+        
         if (this.config?.custom?.model) {
             this.config.custom.model.off('update', this._onUpdate);
             this.config.custom.model.off('formula_changed', this._onFormulaChanged);
+            this.config.custom.model.removeEventListener("user-selection-changed", this._onSelectionChanged);
         }
         super.destroy();
     }
@@ -188,9 +236,15 @@ export class SearchPlugin extends OdooUIPlugin {
                 return this._getIds(idArgs);
             case 'GET_SUM':
                 const sumArgs = this._processArgs(args);
-                return this._getSum(sumArgs);
+                if (this._getSum) {
+                    return this._getSum(sumArgs);
+                }
+                return { value: 0, requiresRefresh: false };
             default:
-                return this._performSearch(...args);
+                if (this._performSearch) {
+                    return this._performSearch(...args);
+                }
+                return { value: "", requiresRefresh: false };
         }
     }
 
@@ -250,11 +304,6 @@ export class SearchPlugin extends OdooUIPlugin {
         this.isInitialized = true;
 
         try {
-            await Promise.all([
-                this._loadSaleOrders(),
-                this._loadPartners(),
-            ]);
-            
             this.dataReady = true;
             this._refreshAllData();
         } catch (error) {
@@ -265,15 +314,8 @@ export class SearchPlugin extends OdooUIPlugin {
 
     _refreshAllData() {
         // Déclencher un rafraîchissement global
-        this.trigger('REFRESH');
-    }
-
-    // Helper methods for loading data
-    async _loadSaleOrders() {
-        // Implementation if needed
-    }
-    
-    async _loadPartners() {
-        // Implementation if needed
+        if (this.config?.custom?.model) {
+            this.config.custom.model.dispatch("EVALUATE_CELLS");
+        }
     }
 }

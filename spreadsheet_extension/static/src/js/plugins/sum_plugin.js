@@ -17,6 +17,41 @@ export class SumPlugin extends OdooUIPlugin {
         this._serverData = config?.custom?.odooDataProvider?.serverData;
         this._cache = new Map();
         this._pendingRequests = new Map();
+        this._refreshTimerId = null;
+        this.config = config;
+        
+        if (config?.custom?.model) {
+            // S'enregistrer pour les événements qui pourraient nécessiter un rafraîchissement
+            config.custom.model.addEventListener("user-selection-changed", this._onSelectionChanged.bind(this));
+        }
+    }
+
+    /**
+     * Appelé lorsque la sélection change dans la feuille
+     * Peut aider à déclencher des rafraîchissements
+     */
+    _onSelectionChanged() {
+        // Vérifier s'il y a des promesses en attente et forcer une réévaluation
+        if (this._pendingRequests.size > 0) {
+            this._scheduleRefresh();
+        }
+    }
+
+    /**
+     * Planifie un refresh différé pour éviter trop d'appels consécutifs
+     */
+    _scheduleRefresh() {
+        if (this._refreshTimerId) {
+            clearTimeout(this._refreshTimerId);
+        }
+        
+        this._refreshTimerId = setTimeout(() => {
+            if (this.config?.custom?.model) {
+                this.config.custom.model.dispatch("EVALUATE_CELLS");
+                console.log("SumPlugin: Scheduled refresh triggered");
+            }
+            this._refreshTimerId = null;
+        }, 100);
     }
 
     get serverData() {
@@ -81,16 +116,21 @@ export class SumPlugin extends OdooUIPlugin {
                 this._cache.set(cacheKey, sum);
                 this._pendingRequests.delete(cacheKey);
                 
-                this.dispatch("EVALUATE_CELLS");
+                // Programmer un refresh différé
+                this._scheduleRefresh();
             })
             .catch(error => {
+                console.error("Error in sumRecords:", error);
                 this._pendingRequests.delete(cacheKey);
+                // Même en cas d'erreur, tenter un refresh
+                this._scheduleRefresh();
             });
 
             this._pendingRequests.set(cacheKey, promise);
             return { value: 0, requiresRefresh: true };
             
         } catch (error) {
+            console.error("Error in sumRecords:", error);
             return { value: 0, requiresRefresh: false };
         }
     }
@@ -107,5 +147,20 @@ export class SumPlugin extends OdooUIPlugin {
                 break;
         }
         return false;
+    }
+    
+    /**
+     * @override
+     */
+    destroy() {
+        if (this._refreshTimerId) {
+            clearTimeout(this._refreshTimerId);
+        }
+        
+        if (this.config?.custom?.model) {
+            this.config.custom.model.removeEventListener("user-selection-changed", this._onSelectionChanged);
+        }
+        
+        super.destroy();
     }
 } 
