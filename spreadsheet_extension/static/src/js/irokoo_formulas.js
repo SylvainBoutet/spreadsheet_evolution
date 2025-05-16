@@ -377,7 +377,7 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
         arg("group_by (string)", _t("Field to group by (e.g. 'partner_id' or 'state')")),
         arg("aggregate_field (string)", _t("Field to aggregate (e.g. 'amount_untaxed')")),
         arg("aggregate_function (string)", _t("Aggregation function (sum, avg, count, min, max)")),
-        arg("filters (string)", _t("Filters separated by semicolons (e.g. 'state=sale')")),
+        arg("filters (string)", _t("Filters separated by semicolons (e.g. 'state=sale' or 'state:in:draft,sent')")),
         arg("limit (number)", _t("Maximum number of groups to return")),
     ],
     category: "Odoo",
@@ -400,8 +400,32 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
             const filterArray = filtersStr.split(';');
             
             for (const filter of filterArray) {
-                if (filter.includes('=')) {
-                    const [field, value] = filter.split('=').map(s => s.trim());
+                const trimmedFilter = filter.trim();
+                
+                // Support for explicit format "field:operator:value"
+                if (trimmedFilter.includes(':')) {
+                    const parts = trimmedFilter.split(':');
+                    if (parts.length >= 3) {
+                        const field = parts[0].trim();
+                        const operator = parts[1].trim();
+                        const valueStr = parts.slice(2).join(':').trim();
+                        
+                        // Support for "in" operator with comma-separated values
+                        if (operator.toLowerCase() === 'in' && valueStr.includes(',')) {
+                            const values = valueStr.split(',').map(v => v.trim());
+                            domain.push([field, 'in', values]);
+                        } else {
+                            // Try to convert to number if possible
+                            const parsedValue = !isNaN(Number(valueStr)) ? Number(valueStr) : valueStr;
+                            domain.push([field, operator, parsedValue]);
+                        }
+                        continue; // Skip further processing for this filter
+                    }
+                }
+                
+                // Legacy support for field=value format
+                else if (trimmedFilter.includes('=')) {
+                    const [field, value] = trimmedFilter.split('=').map(s => s.trim());
                     // Try to convert numeric values for proper domain construction
                     const parsedValue = !isNaN(Number(value)) ? Number(value) : value;
                     domain.push([field, '=', parsedValue]);
@@ -413,6 +437,8 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
         if (domain.length === 0) {
             domain.push(['id', '>', '0']);
         }
+        
+        console.log("GET_GROUPED_IDS - Final domain:", JSON.stringify(domain));
         
         // Initialize API to ensure correct data access - this is crucial for reliability
         try {
@@ -677,6 +703,335 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
             
             // Otherwise return error message
             return { value: "Error: " + e.message, format: "@" };
+        }
+    }
+});
+
+functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
+    description: _t("Sum a field for records matching a domain"),
+    args: [
+        arg("model (string)", _t("The technical model name (e.g. 'sale.order')")),
+        arg("field (string)", _t("The field to sum (e.g. 'amount_untaxed')")),
+        arg("filters (string)", _t("Filters separated by semicolons (e.g. 'partner_id=10;state=posted')")),
+    ],
+    category: "Odoo",
+    returns: ["NUMBER"],
+    compute: function (model, field, filters) {
+        console.log("SUM_BY_DOMAIN - Paramètres reçus:", { model, field, filters });
+        
+        const _model = toString(model);
+        const _field = toString(field);
+        const filtersStr = toString(filters);
+        
+        console.log("SUM_BY_DOMAIN - Filtres après conversion:", filtersStr);
+        
+        // Construire le domaine à partir de la chaîne de filtres
+        const domain = [];
+        
+        // Réutiliser la même logique de parsing des filtres que dans GET_IDS
+        function parseFilter(filterStr) {
+            if (!filterStr || typeof filterStr !== 'string') return null;
+            
+            filterStr = filterStr.trim();
+            if (filterStr === '') return null;
+            
+            console.log("SUM_BY_DOMAIN - Analyse du filtre:", filterStr);
+            
+            let field, operator, value;
+            
+            // Format explicite "field:operator:value"
+            if (filterStr.includes(':')) {
+                const parts = filterStr.split(':');
+                if (parts.length >= 3) {
+                    field = parts[0].trim();
+                    operator = parts[1].trim();
+                    value = parts.slice(2).join(':').trim(); // Au cas où la valeur contient aussi des ":"
+                    
+                    console.log(`SUM_BY_DOMAIN - Format explicite: ${field}:${operator}:${value}`);
+                    
+                    // Si c'est un opérateur 'in' avec valeurs séparées par virgules
+                    if (operator.toLowerCase() === 'in' && value.includes(',')) {
+                        const values = value.split(',').map(v => v.trim());
+                        console.log("SUM_BY_DOMAIN - Valeurs IN:", values);
+                        return [field, 'in', values];
+                    }
+                    
+                    // Tenter de convertir en nombre si possible
+                    if (!isNaN(parseFloat(value))) {
+                        value = parseFloat(value);
+                    }
+                    
+                    return [field, operator, value];
+                }
+            }
+            
+            // Format "field~value" pour ilike (ancien format)
+            if (filterStr.includes('~')) {
+                const parts = filterStr.split('~');
+                field = parts[0].trim();
+                value = parts.slice(1).join('~').trim();
+                return [field, 'ilike', value];
+            }
+            
+            // Détecter si c'est une recherche de type LIKE/ILIKE avec %
+            const hasPercentage = filterStr.includes('%');
+            let isLikeSearch = false;
+            
+            // Format "field=value" (ou LIKE si contient %)
+            if (filterStr.includes('=')) {
+                const parts = filterStr.split('=');
+                field = parts[0].trim();
+                value = parts.slice(1).join('=').trim(); // Au cas où la valeur contient aussi des "="
+                
+                // Si la valeur contient % et que ce n'est pas au début (éviter les confusions avec les calculs %)
+                if (hasPercentage && value.includes('%')) {
+                    isLikeSearch = true;
+                    operator = 'ilike';
+                } else {
+                    operator = '=';
+                }
+                
+                // Tenter de convertir en nombre si possible
+                if (!isNaN(parseFloat(value))) {
+                    value = parseFloat(value);
+                }
+                
+                return [field, operator, value];
+            }
+            
+            // Format "field>value" ou "field<value"
+            if (filterStr.includes('>')) {
+                const parts = filterStr.split('>');
+                field = parts[0].trim();
+                value = parts.slice(1).join('>').trim();
+                
+                // Tenter de convertir en nombre si possible
+                if (!isNaN(parseFloat(value))) {
+                    value = parseFloat(value);
+                }
+                
+                return [field, '>', value];
+            }
+            
+            if (filterStr.includes('<')) {
+                const parts = filterStr.split('<');
+                field = parts[0].trim();
+                value = parts.slice(1).join('<').trim();
+                
+                // Tenter de convertir en nombre si possible
+                if (!isNaN(parseFloat(value))) {
+                    value = parseFloat(value);
+                }
+                
+                return [field, '<', value];
+            }
+            
+            // Format "field!=value" ou "field!value"
+            if (filterStr.includes('!=')) {
+                const parts = filterStr.split('!=');
+                field = parts[0].trim();
+                value = parts.slice(1).join('!=').trim();
+                
+                // Tenter de convertir en nombre si possible
+                if (!isNaN(parseFloat(value))) {
+                    value = parseFloat(value);
+                }
+                
+                return [field, '!=', value];
+            } else if (filterStr.includes('!')) {
+                const parts = filterStr.split('!');
+                field = parts[0].trim();
+                value = parts.slice(1).join('!').trim();
+                
+                // Tenter de convertir en nombre si possible
+                if (!isNaN(parseFloat(value))) {
+                    value = parseFloat(value);
+                }
+                
+                return [field, '!=', value];
+            }
+            
+            return null;
+        }
+        
+        // Traiter les filtres
+        if (filtersStr && filtersStr.trim() !== '') {
+            const filterArray = filtersStr.split(';');
+            console.log("SUM_BY_DOMAIN - Filtres séparés:", filterArray);
+            
+            for (const filter of filterArray) {
+                const domainItem = parseFilter(filter);
+                if (domainItem) {
+                    domain.push(domainItem);
+                    console.log("SUM_BY_DOMAIN - Ajout au domaine:", domainItem);
+                }
+            }
+        }
+        
+        console.log("SUM_BY_DOMAIN - Domaine final:", domain);
+        
+        try {
+            // Initialisation avec l'utilisateur courant pour établir le contexte de sécurité
+            try {
+                if (this.getters.getOdooServerData) {
+                    const serverData = this.getters.getOdooServerData();
+                    if (serverData && serverData.user && serverData.user.id) {
+                        try {
+                            this.getters.getFieldValue("res.users", serverData.user.id, "name");
+                        } catch (e) {
+                            // Ignorer
+                        }
+                    }
+                }
+            } catch (initError) {
+                console.log("Erreur d'initialisation:", initError);
+            }
+            
+            // 1. Récupérer les IDs correspondant au domaine
+            const idsResult = this.getters.searchRecords(_model, domain, { 
+                // Pas de limite pour prendre en compte tous les enregistrements
+                // Pas de tri nécessaire pour une somme
+            });
+            
+            console.log("SUM_BY_DOMAIN - Résultat de searchRecords:", idsResult);
+            
+            // VÉRIFICATION SPÉCIALE : Tester les parties du domaine individuellement pour débogage
+            console.log("SUM_BY_DOMAIN - Test de chaque partie du domaine individuellement:");
+            
+            // Si le domaine a plusieurs conditions, tester chacune séparément
+            if (domain.length > 1) {
+                for (let i = 0; i < domain.length; i++) {
+                    const singleCondition = [domain[i]];
+                    console.log("SUM_BY_DOMAIN - Test condition:", singleCondition);
+                    const partialResult = this.getters.searchRecords(_model, singleCondition, {});
+                    
+                    // Combien d'enregistrements correspond à cette condition seule?
+                    let countIds = 0;
+                    if (partialResult.value) {
+                        if (typeof partialResult.value === 'string') {
+                            countIds = partialResult.value.split(',').length;
+                        } else if (Array.isArray(partialResult.value)) {
+                            countIds = partialResult.value.length;
+                        }
+                    }
+                    console.log(`SUM_BY_DOMAIN - Condition ${i+1} seule trouve: ${countIds} enregistrements`);
+                }
+            }
+            
+            // Si données en cours de chargement
+            if (idsResult.requiresRefresh) {
+                console.log("SUM_BY_DOMAIN - Données en cours de chargement");
+                return { value: 0, format: "#,##0.00" };
+            }
+            
+            // Si aucun résultat
+            if (!idsResult.value || 
+                (Array.isArray(idsResult.value) && !idsResult.value.length) || 
+                (typeof idsResult.value === 'string' && !idsResult.value.trim())) {
+                console.log("SUM_BY_DOMAIN - Aucun résultat trouvé");
+                return { value: 0, format: "#,##0.00" };
+            }
+            
+            // 2. Préparer la liste d'IDs
+            let ids;
+            if (typeof idsResult.value === 'string') {
+                ids = idsResult.value;
+            } else if (Array.isArray(idsResult.value)) {
+                ids = idsResult.value.join(',');
+            }
+            
+            console.log("SUM_BY_DOMAIN - IDs trouvés:", ids);
+            
+            // Si aucun ID valide
+            if (!ids || ids === '') {
+                console.log("SUM_BY_DOMAIN - Aucun ID valide");
+                return { value: 0, format: "#,##0.00" };
+            }
+            
+            // Limiter le nombre d'IDs seulement si vraiment excessif
+            const maxIds = 2000; // Augmentation significative de la limite
+            if (ids.includes(',')) {
+                const idArray = ids.split(',');
+                if (idArray.length > maxIds) {
+                    console.log(`SUM_BY_DOMAIN: Attention - ${idArray.length} IDs trouvés, la performance peut être affectée.`);
+                    // On ne limite plus les IDs - mais on log un avertissement
+                    // ids = idArray.slice(0, maxIds).join(',');
+                }
+            }
+            
+            // 3. Sommer les valeurs - méthode manuelle si sumRecords n'est pas disponible ou échoue
+            let manualCalculation = false;
+            
+            // Vérifier si sumRecords existe
+            if (!this.getters.sumRecords) {
+                manualCalculation = true;
+                console.log("sumRecords non disponible, calcul manuel");
+            } else {
+                // Essayer d'utiliser sumRecords (méthode standard)
+                try {
+                    const sumResult = this.getters.sumRecords(_model, _field, ids);
+                    
+                    // Si on a besoin d'un refresh, on va essayer le calcul manuel
+                    if (sumResult.requiresRefresh) {
+                        manualCalculation = true;
+                        console.log("sumRecords nécessite refresh, tentative de calcul manuel");
+                    } else {
+                        // Si le résultat est vide ou égal à 0, vérifier si c'est un vrai 0 ou un problème
+                        if ((!sumResult.value && sumResult.value !== 0) || 
+                            (sumResult.value === 0 && ids.split(',').length > 5)) {
+                            // Si on a beaucoup d'IDs mais un résultat de 0, c'est suspect - essayer en manuel
+                            manualCalculation = true;
+                            console.log("sumRecords a retourné 0 pour de nombreux enregistrements, tentative de calcul manuel");
+                        } else {
+                            // Sinon on retourne la valeur formatée de sumRecords
+                            console.log("sumRecords a réussi: ", sumResult.value);
+                            return {
+                                value: sumResult.value,
+                                format: "#,##0.00", // Format nombre avec 2 décimales
+                            };
+                        }
+                    }
+                } catch (sumError) {
+                    console.error("Erreur sumRecords:", sumError);
+                    manualCalculation = true;
+                }
+            }
+            
+            // Calcul manuel si nécessaire
+            if (manualCalculation) {
+                console.log("Démarrage du calcul manuel sur", ids.split(',').length, "enregistrements");
+                let total = 0;
+                let count = 0;
+                
+                // Récupérer les IDs sous forme de tableau
+                const idArray = ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+                
+                // Calculer la somme manuellement
+                for (const id of idArray) {
+                    try {
+                        const val = this.getters.getFieldValue(_model, id, _field);
+                        if (typeof val === 'number') {
+                            total += val;
+                            count++;
+                        } else if (typeof val === 'string' && !isNaN(parseFloat(val))) {
+                            total += parseFloat(val);
+                            count++;
+                        }
+                    } catch (e) {
+                        // Ignorer les erreurs sur les valeurs individuelles
+                    }
+                }
+                
+                console.log("Calcul manuel terminé:", total, "à partir de", count, "valeurs valides");
+                return {
+                    value: total,
+                    format: "#,##0.00",
+                };
+            }
+            
+        } catch (error) {
+            console.error("SUM_BY_DOMAIN error:", error);
+            return { value: 0, format: "#,##0.00" };
         }
     }
 });
