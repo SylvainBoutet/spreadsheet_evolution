@@ -694,7 +694,6 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
             
         } catch (e) {
             // Global error handler
-            console.error("GET_GROUPED_IDS - Error:", e);
             
             // If data is still loading, return loading indicator
             if (e.name === "LoadingDataError" || (e.message && e.message.includes("Loading"))) {
@@ -717,13 +716,9 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
     category: "Odoo",
     returns: ["NUMBER"],
     compute: function (model, field, filters) {
-        console.log("SUM_BY_DOMAIN - Paramètres reçus:", { model, field, filters });
-        
         const _model = toString(model);
         const _field = toString(field);
         const filtersStr = toString(filters);
-        
-        console.log("SUM_BY_DOMAIN - Filtres après conversion:", filtersStr);
         
         // Construire le domaine à partir de la chaîne de filtres
         const domain = [];
@@ -735,8 +730,6 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
             filterStr = filterStr.trim();
             if (filterStr === '') return null;
             
-            console.log("SUM_BY_DOMAIN - Analyse du filtre:", filterStr);
-            
             let field, operator, value;
             
             // Format explicite "field:operator:value"
@@ -747,12 +740,9 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                     operator = parts[1].trim();
                     value = parts.slice(2).join(':').trim(); // Au cas où la valeur contient aussi des ":"
                     
-                    console.log(`SUM_BY_DOMAIN - Format explicite: ${field}:${operator}:${value}`);
-                    
                     // Si c'est un opérateur 'in' avec valeurs séparées par virgules
                     if (operator.toLowerCase() === 'in' && value.includes(',')) {
                         const values = value.split(',').map(v => v.trim());
-                        console.log("SUM_BY_DOMAIN - Valeurs IN:", values);
                         return [field, 'in', values];
                     }
                     
@@ -857,18 +847,14 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
         // Traiter les filtres
         if (filtersStr && filtersStr.trim() !== '') {
             const filterArray = filtersStr.split(';');
-            console.log("SUM_BY_DOMAIN - Filtres séparés:", filterArray);
             
             for (const filter of filterArray) {
                 const domainItem = parseFilter(filter);
                 if (domainItem) {
                     domain.push(domainItem);
-                    console.log("SUM_BY_DOMAIN - Ajout au domaine:", domainItem);
                 }
             }
         }
-        
-        console.log("SUM_BY_DOMAIN - Domaine final:", domain);
         
         try {
             // Initialisation avec l'utilisateur courant pour établir le contexte de sécurité
@@ -893,34 +879,8 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                 // Pas de tri nécessaire pour une somme
             });
             
-            console.log("SUM_BY_DOMAIN - Résultat de searchRecords:", idsResult);
-            
-            // VÉRIFICATION SPÉCIALE : Tester les parties du domaine individuellement pour débogage
-            console.log("SUM_BY_DOMAIN - Test de chaque partie du domaine individuellement:");
-            
-            // Si le domaine a plusieurs conditions, tester chacune séparément
-            if (domain.length > 1) {
-                for (let i = 0; i < domain.length; i++) {
-                    const singleCondition = [domain[i]];
-                    console.log("SUM_BY_DOMAIN - Test condition:", singleCondition);
-                    const partialResult = this.getters.searchRecords(_model, singleCondition, {});
-                    
-                    // Combien d'enregistrements correspond à cette condition seule?
-                    let countIds = 0;
-                    if (partialResult.value) {
-                        if (typeof partialResult.value === 'string') {
-                            countIds = partialResult.value.split(',').length;
-                        } else if (Array.isArray(partialResult.value)) {
-                            countIds = partialResult.value.length;
-                        }
-                    }
-                    console.log(`SUM_BY_DOMAIN - Condition ${i+1} seule trouve: ${countIds} enregistrements`);
-                }
-            }
-            
             // Si données en cours de chargement
             if (idsResult.requiresRefresh) {
-                console.log("SUM_BY_DOMAIN - Données en cours de chargement");
                 return { value: 0, format: "#,##0.00" };
             }
             
@@ -928,7 +888,6 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
             if (!idsResult.value || 
                 (Array.isArray(idsResult.value) && !idsResult.value.length) || 
                 (typeof idsResult.value === 'string' && !idsResult.value.trim())) {
-                console.log("SUM_BY_DOMAIN - Aucun résultat trouvé");
                 return { value: 0, format: "#,##0.00" };
             }
             
@@ -940,11 +899,8 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                 ids = idsResult.value.join(',');
             }
             
-            console.log("SUM_BY_DOMAIN - IDs trouvés:", ids);
-            
             // Si aucun ID valide
             if (!ids || ids === '') {
-                console.log("SUM_BY_DOMAIN - Aucun ID valide");
                 return { value: 0, format: "#,##0.00" };
             }
             
@@ -965,7 +921,6 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
             // Vérifier si sumRecords existe
             if (!this.getters.sumRecords) {
                 manualCalculation = true;
-                console.log("sumRecords non disponible, calcul manuel");
             } else {
                 // Essayer d'utiliser sumRecords (méthode standard)
                 try {
@@ -974,17 +929,14 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                     // Si on a besoin d'un refresh, on va essayer le calcul manuel
                     if (sumResult.requiresRefresh) {
                         manualCalculation = true;
-                        console.log("sumRecords nécessite refresh, tentative de calcul manuel");
                     } else {
                         // Si le résultat est vide ou égal à 0, vérifier si c'est un vrai 0 ou un problème
                         if ((!sumResult.value && sumResult.value !== 0) || 
                             (sumResult.value === 0 && ids.split(',').length > 5)) {
                             // Si on a beaucoup d'IDs mais un résultat de 0, c'est suspect - essayer en manuel
                             manualCalculation = true;
-                            console.log("sumRecords a retourné 0 pour de nombreux enregistrements, tentative de calcul manuel");
                         } else {
                             // Sinon on retourne la valeur formatée de sumRecords
-                            console.log("sumRecords a réussi: ", sumResult.value);
                             return {
                                 value: sumResult.value,
                                 format: "#,##0.00", // Format nombre avec 2 décimales
@@ -992,14 +944,12 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                         }
                     }
                 } catch (sumError) {
-                    console.error("Erreur sumRecords:", sumError);
                     manualCalculation = true;
                 }
             }
             
             // Calcul manuel si nécessaire
             if (manualCalculation) {
-                console.log("Démarrage du calcul manuel sur", ids.split(',').length, "enregistrements");
                 let total = 0;
                 let count = 0;
                 
@@ -1022,7 +972,6 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                     }
                 }
                 
-                console.log("Calcul manuel terminé:", total, "à partir de", count, "valeurs valides");
                 return {
                     value: total,
                     format: "#,##0.00",
