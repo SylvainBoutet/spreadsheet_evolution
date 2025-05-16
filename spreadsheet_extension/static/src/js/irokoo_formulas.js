@@ -38,58 +38,142 @@ functionRegistry.add("IROKOO.GET_IDS", {
         arg("order (string)", _t("Field to order by")),
         arg("direction (string)", _t("Order direction (e.g. 'asc', 'desc')")),
         arg("limit (number)", _t("Maximum number of records to return (0 for no limit)")),
-        arg("field1 (string)", _t("First field to search on")),
-        arg("operator1 (string)", _t("First operator (e.g. 'ilike', '=', '>', '<')")),
-        arg("value1 (string)", _t("First value to search for")),
+        arg("filters (string)", _t("Filters separated by semicolons (e.g. 'partner_id=10;state=posted;amount_total>1000')")),
     ],
     category: "Odoo",
     returns: ["STRING"],
-    compute: function (...args) {
-        if (args.length < 7 || (args.length - 4) % 3 !== 0) {
-            throw new EvaluationError(_t("Invalid number of arguments"));
-        }
-    
-        const model = toString(args[0]);
-        const orderField = toString(args[1]);
-        const orderDirection = toString(args[2]);
-        const limit = toNumber(args[3], this.locale);
+    compute: function (model, order, direction, limit, filters) {
+        // Convertir les arguments
+        const _model = toString(model);
+        const orderField = toString(order);
+        const orderDirection = toString(direction);
+        const _limit = toNumber(limit, this.locale);
+        const filtersStr = toString(filters);
+        
+        // Construire le domaine à partir de la chaîne de filtres
         const domain = [];
-    
-        for (let i = 4; i < args.length; i += 3) {
-            const field = toString(args[i]);
-            const operator = toString(args[i + 1]);
-            const value = toString(args[i + 2]);
+        
+        // Fonction pour traiter un filtre individuel
+        function parseFilter(filterStr) {
+            if (!filterStr || typeof filterStr !== 'string') return null;
             
-            if (field && operator && value) {
-                domain.push([field, operator, value]);
+            filterStr = filterStr.trim();
+            if (filterStr === '') return null;
+            
+            let field, operator, value;
+            
+            // Format explicite "field:operator:value"
+            if (filterStr.includes(':')) {
+                const parts = filterStr.split(':');
+                if (parts.length >= 3) {
+                    field = parts[0].trim();
+                    operator = parts[1].trim();
+                    value = parts.slice(2).join(':').trim(); // Au cas où la valeur contient aussi des ":"
+                    return [field, operator, value];
+                }
+            }
+            
+            // Format "field=value"
+            if (filterStr.includes('=')) {
+                const parts = filterStr.split('=');
+                field = parts[0].trim();
+                value = parts.slice(1).join('=').trim(); // Au cas où la valeur contient aussi des "="
+                return [field, '=', value];
+            }
+            
+            // Format "field>value" ou "field<value"
+            if (filterStr.includes('>')) {
+                const parts = filterStr.split('>');
+                field = parts[0].trim();
+                value = parts.slice(1).join('>').trim();
+                return [field, '>', value];
+            }
+            
+            if (filterStr.includes('<')) {
+                const parts = filterStr.split('<');
+                field = parts[0].trim();
+                value = parts.slice(1).join('<').trim();
+                return [field, '<', value];
+            }
+            
+            // Format "field!=value" ou "field!value"
+            if (filterStr.includes('!=')) {
+                const parts = filterStr.split('!=');
+                field = parts[0].trim();
+                value = parts.slice(1).join('!=').trim();
+                return [field, '!=', value];
+            } else if (filterStr.includes('!')) {
+                const parts = filterStr.split('!');
+                field = parts[0].trim();
+                value = parts.slice(1).join('!').trim();
+                return [field, '!=', value];
+            }
+            
+            return null;
+        }
+        
+        // Découper la chaîne de filtres en filtres individuels (séparés par des points-virgules)
+        if (filtersStr && filtersStr.trim() !== '') {
+            const filterArray = filtersStr.split(';');
+            
+            for (const filter of filterArray) {
+                const domainItem = parseFilter(filter);
+                if (domainItem) {
+                    domain.push(domainItem);
+                }
             }
         }
+        
+        console.log("GET_IDS - Domaine construit:", domain);
         
         // ASTUCE: Simuler un appel à GET_FIELD pour initialiser ce qui est nécessaire
-        // Nous utilisons un appel avec ID 1 qui devrait exister dans la plupart des modèles
         try {
             if (this.getters && this.getters.getFieldValue) {
-                // Appel "caché" à getFieldValue pour assurer l'initialisation
-                console.log("GET_IDS - Simulation d'un appel à getFieldValue pour initialisation");
-                // On choisit "name" comme champ car il existe dans la plupart des modèles
-                const initResult = this.getters.getFieldValue(model, 1, "name");
-                console.log("GET_IDS - Résultat de l'initialisation:", initResult);
+                // Obtenir d'abord l'accès aux données serveur pour amorcer le système
+                if (this.getters.getOdooServerData) {
+                    const serverData = this.getters.getOdooServerData();
+                    if (serverData && serverData.batch) {
+                        console.log("GET_IDS - Obtenu accès à serverData.batch pour initialisation");
+                    }
+                }
+                
+                // Essayer avec les IDs qui pourraient être présents dans le domaine
+                // Par exemple, si le domaine contient des conditions sur des IDs spécifiques
+                let idToUse = 1; // ID par défaut
+                
+                // Chercher un ID explicite dans le domaine
+                for (const condition of domain) {
+                    if (condition[0] === 'id' && condition[1] === '=' && !isNaN(parseInt(condition[2]))) {
+                        idToUse = parseInt(condition[2]);
+                        console.log("GET_IDS - Utilisation de l'ID trouvé dans le domaine:", idToUse);
+                        break;
+                    }
+                }
+                
+                // L'astuce : ignorer le résultat et ne stocker aucune référence
+                // Cela déclenche l'initialisation mais sans affecter notre code si ça échoue
+                this.getters.getFieldValue(_model, idToUse, "id");
+                console.log("GET_IDS - Initialisation avec getFieldValue réussie");
             }
         } catch (e) {
-            // On ignore les erreurs de ce faux appel, on veut juste l'effet secondaire
-            console.log("GET_IDS - L'initialisation via getFieldValue a échoué, mais on continue");
+            console.log("GET_IDS - L'initialisation a échoué, mais on continue:", e);
         }
         
-        const result = this.getters.searchRecords(model, domain, { 
+        const result = this.getters.searchRecords(_model, domain, { 
             order: [[orderField, orderDirection]],
-            limit: limit > 0 ? limit : false
+            limit: _limit > 0 ? _limit : false
         });
         
         console.log("GET_IDS avant retour:", result);
         
         if (!result.value) {
             console.warn("Aucun ID trouvé pour GET_IDS");
-            return { value: "", requiresRefresh: true };
+            // Retourner un message explicite au lieu d'une chaîne vide
+            return { 
+                value: "Aucun résultat trouvé", 
+                format: "@",
+                requiresRefresh: false  // Ne pas continuer à demander des refresh si aucun résultat
+            };
         }
 
         return {
@@ -120,25 +204,49 @@ functionRegistry.add("IROKOO.GET_SUM", {
         const field = toString(args[1]);
         const ids = toString(args[2]);
         
+        // Vérifier si nous avons reçu le message "Aucun résultat trouvé" de GET_IDS
+        if (ids === "Aucun résultat trouvé") {
+            return {
+                value: "Aucun résultat à additionner",
+                format: "@",
+                requiresRefresh: false
+            };
+        }
+        
         // ASTUCE: Simuler un appel à GET_FIELD pour initialiser ce qui est nécessaire
         try {
             if (this.getters && this.getters.getFieldValue) {
-                // Appel "caché" à getFieldValue pour assurer l'initialisation
-                console.log("GET_SUM - Simulation d'un appel à getFieldValue pour initialisation");
-                // Prendre le premier ID de la liste pour l'initialisation
-                const firstId = ids.split(',')[0];
-                if (firstId && !isNaN(parseInt(firstId))) {
-                    const initResult = this.getters.getFieldValue(model, parseInt(firstId), field);
-                    console.log("GET_SUM - Résultat de l'initialisation:", initResult);
-                } else {
-                    // Fallback sur ID 1
-                    const initResult = this.getters.getFieldValue(model, 1, "name");
-                    console.log("GET_SUM - Résultat de l'initialisation (fallback):", initResult);
+                // Obtenir d'abord l'accès aux données serveur pour amorcer le système
+                if (this.getters.getOdooServerData) {
+                    const serverData = this.getters.getOdooServerData();
+                    if (serverData && serverData.batch) {
+                        console.log("GET_SUM - Obtenu accès à serverData.batch pour initialisation");
+                    }
+                }
+                
+                // Essayer ensuite un appel à getFieldValue sur un ID qui devrait exister
+                try {
+                    // Utiliser un ID qui existe probablement
+                    let idToUse = 1; // ID par défaut
+                    
+                    // Prendre le premier ID de la liste si possible
+                    const firstId = ids.split(',')[0];
+                    if (firstId && !isNaN(parseInt(firstId))) {
+                        idToUse = parseInt(firstId);
+                        console.log("GET_SUM - Utilisation du premier ID de la liste:", idToUse);
+                    }
+                    
+                    // L'astuce : demander l'ID plutôt que n'importe quel champ
+                    // L'ID existe toujours et est moins susceptible de causer des erreurs
+                    this.getters.getFieldValue(model, idToUse, "id");
+                    console.log("GET_SUM - Initialisation avec getFieldValue réussie");
+                } catch (innerError) {
+                    // Si cela échoue, ce n'est pas grave, l'initialisation a probablement déjà eu lieu
+                    console.log("GET_SUM - Appel à getFieldValue échoué mais l'initialisation a peut-être réussi");
                 }
             }
         } catch (e) {
-            // On ignore les erreurs de ce faux appel, on veut juste l'effet secondaire
-            console.log("GET_SUM - L'initialisation via getFieldValue a échoué, mais on continue");
+            console.log("GET_SUM - L'initialisation a échoué, mais on continue:", e);
         }
         
         console.log("GET_SUM processed args:", { model, field, ids });
@@ -147,6 +255,15 @@ functionRegistry.add("IROKOO.GET_SUM", {
         // Si on a besoin d'un refresh, on propage cette info
         if (result.requiresRefresh) {
             return { value: result.value, requiresRefresh: true };
+        }
+        
+        // Si le résultat est vide ou égal à 0, afficher un message approprié
+        if (!result.value && result.value !== 0) {
+            return {
+                value: "Aucune valeur à additionner",
+                format: "@",
+                requiresRefresh: false
+            };
         }
         
         // Sinon on retourne la valeur formatée
