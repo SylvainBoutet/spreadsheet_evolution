@@ -162,7 +162,6 @@ export class SearchPlugin extends OdooUIPlugin {
                     return { value, requiresRefresh: false };
                 })
                 .catch((error) => {
-                    console.error("Search error:", error);
                     delete this._promises[cacheKey];
                     return { value: "", requiresRefresh: false };
                 });
@@ -171,7 +170,6 @@ export class SearchPlugin extends OdooUIPlugin {
             return { value: "", requiresRefresh: true };
 
         } catch (error) {
-            console.error("Search error:", error);
             return { value: "", requiresRefresh: false };
         }
     }
@@ -307,7 +305,6 @@ export class SearchPlugin extends OdooUIPlugin {
             this.dataReady = true;
             this._refreshAllData();
         } catch (error) {
-            console.error("Error initializing data:", error);
             this.isInitialized = false;
         }
     }

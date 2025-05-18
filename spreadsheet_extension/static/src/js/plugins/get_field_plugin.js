@@ -123,7 +123,6 @@ export class GetFieldPlugin extends OdooUIPlugin {
             return value;
             
         } catch (error) {
-            console.error("Error in getFieldValue:", error);
             throw error;
         }
     }

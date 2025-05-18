@@ -1,0 +1,206 @@
+{
+  "version": 22,
+  "sheets": [
+    {
+      "id": "sheet1",
+      "name": "Tableau de bord Ventes",
+      "colNumber": 26,
+      "rowNumber": 100,
+      "rows": {},
+      "cols": {
+        "0": {"size": 150},
+        "1": {"size": 180},
+        "2": {"size": 100},
+        "4": {"size": 150},
+        "5": {"size": 180},
+        "7": {"size": 150},
+        "8": {"size": 120},
+        "9": {"size": 120},
+        "14": {"size": 0},
+        "15": {"size": 0},
+        "16": {"size": 0},
+        "17": {"size": 0}
+      },
+      "cells": {
+        "A1": {"content": "Année en cours"},
+        "B1": {"content": "=YEAR(TODAY())"},
+        "A2": {"content": "Date début"},
+        "B2": {"content": "=DATE(B1,1,1)"},
+        "A3": {"content": "Date fin"},
+        "B3": {"content": "=DATE(B1,12,31)"},
+
+        "A5": {"content": "Mois"},
+        "B5": {"content": "Total ventes HT"},
+        "C5": {"content": "Nombre de commandes"},
+
+        "A6": {"content": "Janvier"},
+        "B6": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;date_order>=\" & TEXT(DATE(B1,1,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,1,31),\"yyyy-mm-dd\"))"},
+        "C6": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;date_order>=\" & TEXT(DATE(B1,1,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,1,31),\"yyyy-mm-dd\"))"},
+
+        "A7": {"content": "Février"},
+        "B7": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;date_order>=\" & TEXT(DATE(B1,2,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,2,28),\"yyyy-mm-dd\"))"},
+        "C7": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;date_order>=\" & TEXT(DATE(B1,2,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,2,28),\"yyyy-mm-dd\"))"},
+
+        "A8": {"content": "Mars"},
+        "B8": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;date_order>=\" & TEXT(DATE(B1,3,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,3,31),\"yyyy-mm-dd\"))"},
+        "C8": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;date_order>=\" & TEXT(DATE(B1,3,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,3,31),\"yyyy-mm-dd\"))"},
+
+        "A9": {"content": "Avril"},
+        "B9": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;date_order>=\" & TEXT(DATE(B1,4,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,4,30),\"yyyy-mm-dd\"))"},
+        "C9": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;date_order>=\" & TEXT(DATE(B1,4,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,4,30),\"yyyy-mm-dd\"))"},
+
+        "A10": {"content": "Mai"},
+        "B10": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;date_order>=\" & TEXT(DATE(B1,5,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,5,31),\"yyyy-mm-dd\"))"},
+        "C10": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;date_order>=\" & TEXT(DATE(B1,5,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,5,31),\"yyyy-mm-dd\"))"},
+
+        "A11": {"content": "Juin"},
+        "B11": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;date_order>=\" & TEXT(DATE(B1,6,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,6,30),\"yyyy-mm-dd\"))"},
+        "C11": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;date_order>=\" & TEXT(DATE(B1,6,1),\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(DATE(B1,6,30),\"yyyy-mm-dd\"))"},
+
+        "A12": {"content": "TOTAL S1"},
+        "B12": {"content": "=SUM(B6:B11)"},
+        "C12": {"content": "=SUM(C6:C11)"},
+
+        "O1": {"content": "=IROKOO.GET_GROUPED_IDS(\"sale.order\", \"partner_id\", \"amount_total\", \"sum\", \"state=sale;date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"), 1)"},
+        "O2": {"content": "=IROKOO.GET_GROUPED_IDS(\"sale.order\", \"partner_id\", \"amount_total\", \"sum\", \"state=sale;date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"), 2)"},
+        "O3": {"content": "=IROKOO.GET_GROUPED_IDS(\"sale.order\", \"partner_id\", \"amount_total\", \"sum\", \"state=sale;date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"), 3)"},
+        
+        "O5": {"content": "=IROKOO.GET_GROUPED_IDS(\"sale.order.line\", \"product_id\", \"price_subtotal\", \"sum\", \"order_id.state=sale;order_id.date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";order_id.date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"), 1)"},
+        "O6": {"content": "=IROKOO.GET_GROUPED_IDS(\"sale.order.line\", \"product_id\", \"price_subtotal\", \"sum\", \"order_id.state=sale;order_id.date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";order_id.date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"), 2)"},
+        
+        "O8": {"content": "=IROKOO.GET_GROUPED_IDS(\"sale.order\", \"team_id\", \"amount_total\", \"sum\", \"state=sale;date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"), 1)"},
+        "O9": {"content": "=IROKOO.GET_GROUPED_IDS(\"sale.order\", \"team_id\", \"amount_total\", \"sum\", \"state=sale;date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"), 2)"},
+
+        "E5": {"content": "Top 5 clients"},
+        "F5": {"content": "CA Total HT"},
+
+        "E6": {"content": "=IF(ISTEXT(O1),\"\",IROKOO.GET_FIELD(\"res.partner\",SPLIT(O1,\",\"),\"name\"))"},
+        "F6": {"content": "=IF(ISTEXT(O1),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;partner_id=\" & O1 & \";date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+
+        "E7": {"content": "=IF(ISTEXT(O2),\"\",IROKOO.GET_FIELD(\"res.partner\",SPLIT(O2,\",\"),\"name\"))"},
+        "F7": {"content": "=IF(ISTEXT(O2),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;partner_id=\" & O2 & \";date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+
+        "E8": {"content": "=IF(ISTEXT(O3),\"\",IROKOO.GET_FIELD(\"res.partner\",SPLIT(O3,\",\"),\"name\"))"},
+        "F8": {"content": "=IF(ISTEXT(O3),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;partner_id=\" & O3 & \";date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+
+        "H5": {"content": "Top 5 produits"},
+        "I5": {"content": "Quantité vendue"},
+        "J5": {"content": "CA Total HT"},
+
+        "H6": {"content": "=IF(ISTEXT(O5),\"\",IROKOO.GET_FIELD(\"product.product\",SPLIT(O5,\",\"),\"name\"))"},
+        "I6": {"content": "=IF(ISTEXT(O5),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order.line\", \"product_uom_qty\", \"order_id.state=sale;product_id=\" & O5 & \";order_id.date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";order_id.date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+        "J6": {"content": "=IF(ISTEXT(O5),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order.line\", \"price_subtotal\", \"order_id.state=sale;product_id=\" & O5 & \";order_id.date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";order_id.date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+
+        "H7": {"content": "=IF(ISTEXT(O6),\"\",IROKOO.GET_FIELD(\"product.product\",SPLIT(O6,\",\"),\"name\"))"},
+        "I7": {"content": "=IF(ISTEXT(O6),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order.line\", \"product_uom_qty\", \"order_id.state=sale;product_id=\" & O6 & \";order_id.date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";order_id.date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+        "J7": {"content": "=IF(ISTEXT(O6),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order.line\", \"price_subtotal\", \"order_id.state=sale;product_id=\" & O6 & \";order_id.date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";order_id.date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+
+        "A18": {"content": "Taux de conversion des devis"},
+        "A19": {"content": "Nombre total de devis"},
+        "B19": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"))"},
+        "A20": {"content": "Nombre de commandes confirmées"},
+        "B20": {"content": "=IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\"))"},
+        "A21": {"content": "Taux de conversion"},
+        "B21": {"content": "=IF(B19=0,0,B20/B19)"},
+
+        "E18": {"content": "Répartition par équipe de vente"},
+        "F18": {"content": "CA Total HT"},
+        "G18": {"content": "Nombre de commandes"},
+
+        "E19": {"content": "=IF(ISTEXT(O8),\"\",IROKOO.GET_FIELD(\"crm.team\",SPLIT(O8,\",\"),\"name\"))"},
+        "F19": {"content": "=IF(ISTEXT(O8),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;team_id=\" & O8 & \";date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+        "G19": {"content": "=IF(ISTEXT(O8),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;team_id=\" & O8 & \";date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+
+        "E20": {"content": "=IF(ISTEXT(O9),\"\",IROKOO.GET_FIELD(\"crm.team\",SPLIT(O9,\",\"),\"name\"))"},
+        "F20": {"content": "=IF(ISTEXT(O9),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"amount_untaxed\", \"state=sale;team_id=\" & O9 & \";date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+        "G20": {"content": "=IF(ISTEXT(O9),\"\",IROKOO.SUM_BY_DOMAIN(\"sale.order\", \"1\", \"state=sale;team_id=\" & O9 & \";date_order>=\" & TEXT(B2,\"yyyy-mm-dd\") & \";date_order<=\" & TEXT(B3,\"yyyy-mm-dd\")))"},
+
+        "D1": {"content": "Filtre par équipe"},
+        "D2": {"content": ""}
+      },
+      "merges": [
+        "A18:B18",
+        "A12:A12",
+        "E5:F5",
+        "H5:J5",
+        "E18:G18"
+      ],
+      "styles": {
+        "A1:A3": 1,
+        "A5:J5": 2,
+        "A12:C12": 3,
+        "A18:B18": 2,
+        "A19:A21": 1,
+        "E18:G18": 2,
+        "E5:F5": 2,
+        "H5:J5": 2,
+        "O1:Q20": 4
+      },
+      "formats": {
+        "B6:B12": 10,
+        "F6:F10": 10,
+        "J6:J10": 10,
+        "B21": 11
+      },
+      "borders": {},
+      "conditionalFormats": [],
+      "dataValidationRules": [],
+      "figures": [],
+      "tables": [],
+      "areGridLinesVisible": true,
+      "isVisible": true,
+      "headerGroups": {"ROW": [], "COL": []},
+      "comments": {}
+    }
+  ],
+  "styles": {
+    "1": {
+      "bold": true
+    },
+    "2": {
+      "bold": true,
+      "fillColor": "#E6F2F8",
+      "align": "center"
+    },
+    "3": {
+      "bold": true,
+      "fillColor": "#CCE5F2",
+      "align": "center"
+    },
+    "4": {
+      "hidden": true
+    },
+    "10": {
+      "format": "#,##0.00[$€]"
+    },
+    "11": {
+      "format": "0.00%"
+    }
+  },
+  "formats": {
+    "10": "[$$]#,##0.00",
+    "11": "0.00%"
+  },
+  "borders": {},
+  "revisionId": "12225431-17d2-4bde-bff9-b83ebf58de56",
+  "uniqueFigureIds": true,
+  "settings": {
+    "locale": {
+      "name": "French (France)",
+      "code": "fr_FR",
+      "thousandsSeparator": " ",
+      "decimalSeparator": ",",
+      "dateFormat": "dd/mm/yyyy",
+      "timeFormat": "hh:mm:ss",
+      "formulaArgSeparator": ";"
+    }
+  },
+  "pivots": {},
+  "pivotNextId": 1,
+  "customTableStyles": {},
+  "odooVersion": 18,
+  "globalFilters": [],
+  "lists": {},
+  "listNextId": 1,
+  "chartOdooMenusReferences": {}
+} 

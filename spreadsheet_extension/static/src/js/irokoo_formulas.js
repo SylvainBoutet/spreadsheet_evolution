@@ -979,7 +979,6 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
             }
             
         } catch (error) {
-            console.error("SUM_BY_DOMAIN error:", error);
             return { value: 0, format: "#,##0.00" };
         }
     }

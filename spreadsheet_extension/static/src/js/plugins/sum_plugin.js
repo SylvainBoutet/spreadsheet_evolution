@@ -120,7 +120,6 @@ export class SumPlugin extends OdooUIPlugin {
                 this._scheduleRefresh();
             })
             .catch(error => {
-                console.error("Error in sumRecords:", error);
                 this._pendingRequests.delete(cacheKey);
                 // Même en cas d'erreur, tenter un refresh
                 this._scheduleRefresh();
@@ -130,7 +129,6 @@ export class SumPlugin extends OdooUIPlugin {
             return { value: 0, requiresRefresh: true };
             
         } catch (error) {
-            console.error("Error in sumRecords:", error);
             return { value: 0, requiresRefresh: false };
         }
     }
