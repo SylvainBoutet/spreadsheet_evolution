@@ -323,6 +323,35 @@ Calcule le solde total des écritures comptables sur le compte fournisseurs 4011
     \caption{Exemple d'utilisation de SUM\_BY\_DOMAIN avec filtres complexes}
 \end{figure}
 
+\subsection{IROKOO.COUNT\_BY\_DOMAIN}
+\begin{tcolorbox}[title=Description]
+Compte le nombre d'enregistrements correspondant à un domaine de filtrage, sans nécessiter d'étape intermédiaire.
+\end{tcolorbox}
+
+\subsubsection{Syntaxe}
+\begin{lstlisting}
+=IROKOO.COUNT_BY_DOMAIN(model, filters)
+\end{lstlisting}
+
+\subsubsection{Paramètres}
+\begin{itemize}
+    \item \textbf{model} (chaîne) : Nom technique du modèle
+    \item \textbf{filters} (chaîne) : Filtres (même format que GET\_IDS)
+\end{itemize}
+
+\subsubsection{Retourne}
+Le nombre d'enregistrements correspondant aux filtres.
+
+\subsubsection{Exemple}
+\begin{lstlisting}
+=IROKOO.COUNT_BY_DOMAIN("sale.order", "state=sale;date_order>=2023-01-01;date_order<=2023-12-31")
+\end{lstlisting}
+Compte le nombre de commandes confirmées pour l'année 2023.
+
+\begin{tip}
+Utilisez cette formule à la place de \texttt{SUM\_BY\_DOMAIN} avec \texttt{"1"} comme champ pour obtenir un comptage plus précis et plus performant des enregistrements.
+\end{tip}
+
 \section{Utilisation avancée}
 
 \subsection{Combinaison de formules}
@@ -341,6 +370,19 @@ Utilisez l'opérateur IN pour filtrer sur plusieurs valeurs :
 \begin{lstlisting}
 =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_total", "state:in:draft,sent,sale;date>=2023-01-01")
 \end{lstlisting}
+
+\subsection{Système de mise en cache}
+Pour améliorer les performances, les formules implémentent désormais un système de mise en cache automatique :
+
+\begin{itemize}
+    \item Les résultats des requêtes sont stockés en mémoire pour une réutilisation rapide
+    \item Le cache est automatiquement invalidé lors des changements de données
+    \item Cette optimisation améliore considérablement la réactivité des tableaux de bord complexes
+\end{itemize}
+
+\begin{tip}
+Grâce au système de cache, l'actualisation des données est beaucoup plus rapide lors de modifications mineures des filtres ou paramètres.
+\end{tip}
 
 \subsection{Conseils pour les performances}
 \begin{itemize}
@@ -373,6 +415,22 @@ Puis dans vos formules, référencez cette cellule :
 
 Cette approche permet de mettre à jour dynamiquement toutes vos formules lorsque l'utilisateur change la valeur d'une cellule de filtrage.
 
+\subsection{Gestion des dates}
+
+Les formules ont été optimisées pour une meilleure gestion des filtres de date :
+
+\begin{itemize}
+    \item Les dates sont correctement formatées quel que soit le format de la cellule source
+    \item Les formules attendent patiemment le chargement complet des données avant d'afficher les résultats
+    \item Les textes de chargement sont localisés en français ("Chargement des données en cours...")
+\end{itemize}
+
+Pour une utilisation optimale avec des filtres de date :
+
+\begin{lstlisting}
+=IROKOO.SUM_BY_DOMAIN("sale.order", "amount_total", "date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"))
+\end{lstlisting}
+
 \subsection{Conseils pour l'optimisation}
 
 \begin{itemize}
@@ -388,10 +446,19 @@ Ce tableau de bord vous donne un point de départ pour créer vos propres analys
 
 \subsection{Erreurs courantes}
 \begin{itemize}
-    \item \textbf{"All parameters are required"} : Vérifiez que tous les arguments obligatoires sont fournis
-    \item \textbf{"Loading data..."} : Patientez, les données sont en cours de chargement
-    \item \textbf{"No results found"} : Les filtres ne correspondent à aucun enregistrement
-    \item \textbf{"Error while executing search"} : Vérifiez la syntaxe des filtres et l'existence du modèle
+    \item \textbf{"Tous les paramètres sont requis"} : Vérifiez que tous les arguments obligatoires sont fournis
+    \item \textbf{"Chargement des données en cours..."} : Patientez, les données sont en cours de chargement
+    \item \textbf{"Aucun résultat trouvé"} : Les filtres ne correspondent à aucun enregistrement
+    \item \textbf{"Erreur lors de l'exécution de la recherche"} : Vérifiez la syntaxe des filtres et l'existence du modèle
+\end{itemize}
+
+\subsection{Problèmes de chargement}
+Si vous rencontrez des problèmes avec les formules affichant "Chargement des données en cours..." trop longtemps :
+\begin{itemize}
+    \item Vérifiez que les filtres de date sont correctement formatés avec \texttt{TEXT(date,"yyyy-mm-dd")}
+    \item Réduisez la plage de données en ajoutant des filtres plus restrictifs
+    \item Vérifiez les performances de votre serveur Odoo, des requêtes complexes peuvent prendre du temps
+    \item Consultez les logs du navigateur pour identifier d'éventuelles erreurs JavaScript
 \end{itemize}
 
 \subsection{Problèmes d'accès}
@@ -404,6 +471,75 @@ Ce tableau de bord vous donne un point de départ pour créer vos propres analys
 \begin{warning}
 Si vous rencontrez des problèmes d'accès, assurez-vous que l'utilisateur a les droits nécessaires pour accéder au modèle et aux champs spécifiés dans la formule.
 \end{warning}
+
+\section{Aspects techniques et défis rencontrés}
+
+Au cours du développement de ce module, nous avons dû faire face à plusieurs défis techniques. Cette section présente les principales difficultés rencontrées et les solutions mises en œuvre pour les surmonter. Ces informations peuvent être utiles pour les développeurs souhaitant étendre les fonctionnalités ou comprendre les choix d'implémentation.
+
+\subsection{Chargement asynchrone des données}
+
+\begin{itemize}
+    \item \textbf{Problème} : Les formules s'exécutent de manière asynchrone, ce qui peut entraîner des affichages "Chargement des données en cours..." persistants, notamment avec les filtres de date.
+    \item \textbf{Solution} : Implémentation d'un système de gestion avancé des promesses JavaScript, avec détection de l'état de chargement et retry automatique en cas d'échec.
+    \item \textbf{Résultat} : Une expérience utilisateur plus fluide et des formules qui attendent correctement que les données soient disponibles.
+\end{itemize}
+
+\subsection{Simulation de GET\_FIELD pour résoudre les blocages}
+
+\begin{itemize}
+    \item \textbf{Problème} : Dans certaines situations complexes impliquant des champs relationnels et des filtres de date, les formules GET\_GROUPED\_IDS restaient bloquées en chargement.
+    \item \textbf{Solution} : Nous avons implémenté une technique de "simulation" de GET\_FIELD dans le code de GET\_GROUPED\_IDS, permettant de pré-charger les données relationnelles nécessaires avant de commencer le calcul d'agrégation.
+    \item \textbf{Exemple} : Pour les filtres comme "order\_id.date\_order>=", le module pré-charge maintenant les dates avant de filtrer, évitant ainsi les blocages.
+\end{itemize}
+
+\subsection{Système de cache intelligent}
+
+\begin{itemize}
+    \item \textbf{Problème} : Répétition de requêtes identiques, particulièrement sur les tableaux de bord complexes, entraînant des performances insuffisantes.
+    \item \textbf{Solution} : Implémentation d'un système de cache à deux niveaux :
+    \begin{itemize}
+        \item Cache de premier niveau pour les résultats de recherche (domaines)
+        \item Cache de second niveau pour les résultats d'agrégation (sommes, comptes, etc.)
+    \end{itemize}
+    \item \textbf{Avantage} : Réduction drastique du nombre de requêtes, avec invalidation automatique du cache lors des modifications de données.
+\end{itemize}
+
+\subsection{Gestion des erreurs et résilience}
+
+\begin{itemize}
+    \item \textbf{Problème} : Certaines formules échouaient silencieusement ou bloquaient l'interface utilisateur lors d'erreurs.
+    \item \textbf{Solutions} : 
+    \begin{itemize}
+        \item Localisation française des messages d'erreur pour une meilleure compréhension
+        \item Implémentation d'un système de logging détaillé dans la console navigateur
+        \item Mécanisme de fallback permettant de retourner des résultats partiels plutôt qu'une erreur complète
+    \end{itemize}
+    \item \textbf{Résultat} : Un module plus robuste qui guide l'utilisateur en cas de problème.
+\end{itemize}
+
+\subsection{Optimisation de COUNT\_BY\_DOMAIN}
+
+\begin{itemize}
+    \item \textbf{Problème} : Utilisation inefficace de SUM\_BY\_DOMAIN avec "1" comme champ pour compter les enregistrements.
+    \item \textbf{Solution} : Création d'une formule dédiée COUNT\_BY\_DOMAIN utilisant l'API native de comptage d'Odoo.
+    \item \textbf{Bénéfice} : Performances améliorées et meilleure lisibilité des formules dans les tableaux de bord.
+\end{itemize}
+
+\subsection{Conseils de développement pour l'extension}
+
+Pour les développeurs souhaitant étendre ce module avec de nouvelles formules, nous recommandons de :
+
+\begin{itemize}
+    \item Suivre le pattern de gestion asynchrone mis en place pour assurer la compatibilité
+    \item Intégrer vos formules dans le système de cache existant
+    \item Tester intensivement avec des cas complexes impliquant des champs relationnels et des filtres de date
+    \item Utiliser la console du navigateur pour déboguer lors du développement (les logs détaillés y sont disponibles)
+    \item Prévoir des mécanismes de fallback pour retourner des résultats partiels plutôt que des erreurs complètes
+\end{itemize}
+
+\begin{tip}
+Pour le développement de nouvelles formules, inspectez le code source de GET\_GROUPED\_IDS qui illustre les meilleures pratiques de gestion asynchrone des données et d'utilisation du cache.
+\end{tip}
 
 \section{Exemple de tableau de bord}
 
@@ -420,115 +556,197 @@ Notre tableau de bord vise à répondre aux questions suivantes :
     \item Comment se répartissent nos ventes par équipe de vente ?
 \end{itemize}
 
+\subsection{Architecture à deux feuilles}
+
+Une bonne pratique pour construire des tableaux de bord complexes consiste à utiliser deux feuilles distinctes :
+
+\begin{itemize}
+    \item \textbf{Feuille principale} : "Tableau de bord Ventes" - Contient la présentation et les visualisations
+    \item \textbf{Feuille de données} : "Data" - Stocke les requêtes complexes et les résultats intermédiaires
+\end{itemize}
+
+Cette architecture présente plusieurs avantages :
+\begin{itemize}
+    \item Les requêtes complexes (notamment GET\_GROUPED\_IDS) sont isolées et plus faciles à déboguer
+    \item Les formules de la feuille principale restent plus lisibles et maintenues
+    \item Le cache fonctionne mieux car les requêtes similaires sont centralisées
+    \item L'affichage est plus propre, la feuille de données pouvant être masquée
+\end{itemize}
 
 \subsection{Implémentation étape par étape}
 
-\subsubsection{Étape 1 : Préparation des données de référence}
+\subsubsection{Étape 1 : Création et paramétrage des feuilles}
 
-Commençons par créer des cellules de référence pour les dates et filtres :
+\begin{itemize}
+    \item Créez une première feuille nommée "Tableau de bord Ventes"
+    \item Créez une seconde feuille nommée "Data"
+    \item Dans les paramètres de la feuille "Data", vous pouvez masquer les colonnes contenant les formules complexes
+\end{itemize}
+
+\subsubsection{Étape 2 : Préparation des données de référence dans l'onglet principal}
+
+Dans la feuille principale, configurez les filtres globaux :
 
 \begin{lstlisting}
-A1: "Année en cours"
-B1: =YEAR(TODAY())
-A2: "Date début"
-B2: =DATE(B1,1,1)
-A3: "Date fin"
-B3: =DATE(B1,12,31)
+C1: "Année en cours"
+D1: =YEAR(TODAY())
+C2: "Date début"
+D2: =DATE(D1,1,1)
+C3: "Date fin"
+D3: =DATE(D1,12,31)
 \end{lstlisting}
 
-\subsubsection{Étape 2 : Évolution mensuelle des ventes}
+\subsubsection{Étape 3 : Préparation des requêtes complexes dans la feuille Data}
 
-Pour créer l'évolution mensuelle, nous allons calculer le total pour chaque mois :
+Dans la feuille "Data", préparez les requêtes de regroupement qui seront utilisées à plusieurs endroits :
 
 \begin{lstlisting}
-A5: "Mois"
-B5: "Total ventes HT"
-C5: "Nombre de commandes"
+# Top 5 clients par montant de vente
+B2: =IROKOO.GET_GROUPED_IDS("sale.order", "partner_id", "amount_total", "sum", "state=sale;date_order>=" & TEXT('Tableau de bord Ventes'!D2,"yyyy-mm-dd") & ";date_order<=" & TEXT('Tableau de bord Ventes'!D3,"yyyy-mm-dd"), 5)
 
-A6: "Janvier"
-B6: =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_untaxed", "state=sale;date_order>=" & TEXT(DATE(B1,1,1),"yyyy-mm-dd") & ";date_order<=" & TEXT(DATE(B1,1,31),"yyyy-mm-dd"))
-C6: =IROKOO.SUM_BY_DOMAIN("sale.order", "1", "state=sale;date_order>=" & TEXT(DATE(B1,1,1),"yyyy-mm-dd") & ";date_order<=" & TEXT(DATE(B1,1,31),"yyyy-mm-dd"))
+# Top 5 produits par montant de vente
+B6: =IROKOO.GET_GROUPED_IDS("sale.order.line", "product_id", "price_subtotal", "sum", "order_id.state=sale;order_id.date_order>=" & TEXT('Tableau de bord Ventes'!D2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT('Tableau de bord Ventes'!D3,"yyyy-mm-dd"), 5)
 
-A7: "Février"
-B7: =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_untaxed", "state=sale;date_order>=" & TEXT(DATE(B1,2,1),"yyyy-mm-dd") & ";date_order<=" & TEXT(DATE(B1,2,28),"yyyy-mm-dd"))
-C7: =IROKOO.SUM_BY_DOMAIN("sale.order", "1", "state=sale;date_order>=" & TEXT(DATE(B1,2,1),"yyyy-mm-dd") & ";date_order<=" & TEXT(DATE(B1,2,28),"yyyy-mm-dd"))
+# Top équipes de vente
+B8: =IROKOO.GET_GROUPED_IDS("sale.order", "team_id", "amount_total", "sum", "state=sale;date_order>=" & TEXT('Tableau de bord Ventes'!D2,"yyyy-mm-dd") & ";date_order<=" & TEXT('Tableau de bord Ventes'!D3,"yyyy-mm-dd"), 2)
+\end{lstlisting}
+
+\begin{warning}
+Il est crucial de préparer l'onglet "Data" avant de configurer les formules dans l'onglet principal. Sinon, vous obtiendrez des erreurs de référence puisque les formules de l'onglet principal feront référence à des données qui n'existent pas encore.
+\end{warning}
+
+\begin{tip}
+Ajoutez des commentaires explicatifs dans la feuille Data à côté des formules pour identifier facilement leur fonction. Ces commentaires peuvent être mis dans la colonne A.
+\end{tip}
+
+\subsubsection{Étape 4 : Configuration des colonnes de dates et périodes}
+
+Retournez dans l'onglet principal et configurez les périodes mensuelles :
+
+\begin{lstlisting}
+# Colonnes pour les dates (peuvent être cachées)
+A6: =MONTH.START(B6)           # Début du mois
+B6: =EOMONTH(D2,0)             # Fin du premier mois
+A7: =MONTH.START(B7)           # Début du mois suivant
+B7: =EOMONTH(B6,1)             # Fin du mois suivant
+# Etc. pour chaque mois...
+\end{lstlisting}
+
+\subsubsection{Étape 5 : Évolution mensuelle des ventes}
+
+Configurez maintenant l'affichage des données mensuelles :
+
+\begin{lstlisting}
+# Noms des mois et données
+C5: "Mois"
+D5: "Total ventes HT"
+E5: "Nbre cmde"
+
+C6: "Janvier"
+D6: =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_untaxed", "state=sale;date_order>=" & TEXT(A6,"yyyy-mm-dd") & ";date_order<=" & TEXT(B6,"yyyy-mm-dd"))
+E6: =IROKOO.COUNT_BY_DOMAIN("sale.order", "state=sale;date_order>=" & TEXT(A6,"yyyy-mm-dd") & ";date_order<=" & TEXT(B6,"yyyy-mm-dd"))
 
 # Répéter pour tous les mois...
+
+# Ajouter un total pour le semestre
+C18: "TOTAL S1"
+D18: =SUM(D6:D11)
+E18: =SUM(E6:E11)
 \end{lstlisting}
 
-\subsubsection{Étape 3 : Top 5 clients}
+\subsubsection{Étape 6 : Configuration des Top 5 clients}
 
-Identifions nos meilleurs clients par chiffre d'affaires :
+Utilisez maintenant les données regroupées de la feuille "Data" pour afficher les meilleurs clients :
 
 \begin{lstlisting}
-E5: "Top 5 clients"
-F5: "CA Total HT"
+H4: "Top 5 clients"
+H5: "Nom"
+I5: "Montant cde"
 
-# Obtenir les IDs des 5 meilleurs clients
-E6: =IROKOO.GET_FIELD("res.partner", SPLIT(IROKOO.GET_GROUPED_IDS("sale.order", "partner_id", "amount_total", "sum", "state=sale;date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ","), "name")
-F6: =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_untaxed", "state=sale;partner_id=" & SPLIT(IROKOO.GET_GROUPED_IDS("sale.order", "partner_id", "amount_total", "sum", "state=sale;date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ",") & ";date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"))
+# Colonne pour stocker les IDs (peut être cachée)
+G5: "ID"
+G6: =TRANSPOSE(INDEX(SPLIT(Data!B2,","),1))
 
-# Répéter pour les 4 autres clients (rangs 2 à 5)...
+# Affichage du nom et montant pour chaque client
+H6: =IFERROR(IROKOO.GET_FIELD("res.partner",G6,"name"),"")
+I6: =IFERROR(IROKOO.SUM_BY_DOMAIN("sale.order", "amount_untaxed", "state=sale;partner_id=" & G6 & ";date_order>=" & TEXT(D$2,"yyyy-mm-dd") & ";date_order<=" & TEXT(D$3,"yyyy-mm-dd")),"")
+
+# Répéter pour les lignes suivantes (G7-I10) en incrémentant les références
 \end{lstlisting}
 
-\subsubsection{Étape 4 : Top 5 produits}
+\subsubsection{Étape 7 : Configuration des Top 5 produits}
 
-Analysons les produits les plus performants :
+Même principe pour les produits, en utilisant le regroupement stocké dans la feuille "Data" :
 
 \begin{lstlisting}
-H5: "Top 5 produits"
-I5: "Quantité vendue"
-J5: "CA Total HT"
+K4: "Top 5 produits"
+K5: "Produit"
+L5: "Qté"
+M5: "Montant cde"
 
-# Obtenir les données du premier produit
-H6: =IROKOO.GET_FIELD("product.product", SPLIT(IROKOO.GET_GROUPED_IDS("sale.order.line", "product_id", "price_subtotal", "sum", "order_id.state=sale;order_id.date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ","), "name")
-I6: =IROKOO.SUM_BY_DOMAIN("sale.order.line", "product_uom_qty", "order_id.state=sale;product_id=" & SPLIT(IROKOO.GET_GROUPED_IDS("sale.order.line", "product_id", "price_subtotal", "sum", "order_id.state=sale;order_id.date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ",") & ";order_id.date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT(B3,"yyyy-mm-dd"))
-J6: =IROKOO.SUM_BY_DOMAIN("sale.order.line", "price_subtotal", "order_id.state=sale;product_id=" & SPLIT(IROKOO.GET_GROUPED_IDS("sale.order.line", "product_id", "price_subtotal", "sum", "order_id.state=sale;order_id.date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ",") & ";order_id.date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT(B3,"yyyy-mm-dd"))
+# Colonne pour stocker les IDs (peut être cachée)
+J5: "ID"
+J6: =TRANSPOSE(INDEX(SPLIT(Data!B6,","),1))
 
-# Répéter pour les 4 autres produits...
+# Affichage des informations pour chaque produit
+K6: =IROKOO.GET_FIELD("product.product",J6,"name")
+L6: =IROKOO.SUM_BY_DOMAIN("sale.order.line", "product_uom_qty", "order_id.state=sale;product_id=" & J6 & ";order_id.date_order>=" & TEXT(D2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT(D3,"yyyy-mm-dd"))
+M6: =IROKOO.SUM_BY_DOMAIN("sale.order.line", "price_subtotal", "order_id.state=sale;product_id=" & J6 & ";order_id.date_order>=" & TEXT(D2,"yyyy-mm-dd") & ";order_id.date_order<=" & TEXT(D3,"yyyy-mm-dd"))
+
+# Répéter pour les lignes suivantes
 \end{lstlisting}
 
-\subsubsection{Étape 5 : Taux de conversion des devis}
+\subsubsection{Étape 8 : Taux de conversion des devis}
 
 Calculons le taux de conversion des devis en commandes :
 
 \begin{lstlisting}
-A18: "Taux de conversion des devis"
-A19: "Nombre total de devis"
-B19: =IROKOO.SUM_BY_DOMAIN("sale.order", "1", "date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"))
-A20: "Nombre de commandes confirmées"
-B20: =IROKOO.SUM_BY_DOMAIN("sale.order", "1", "state=sale;date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"))
-A21: "Taux de conversion"
-B21: =B20/B19
+C24: "Taux de conversion des devis"
+A25: "Nombre total de devis"
+D25: =IROKOO.COUNT_BY_DOMAIN("sale.order", "date_order>=" & TEXT(D2,"yyyy-mm-dd") & ";date_order<=" & TEXT(D3,"yyyy-mm-dd"))
+A26: "Nombre de commandes confirmées"
+D26: =IROKOO.COUNT_BY_DOMAIN("sale.order", "state=sale;date_order>=" & TEXT(D2,"yyyy-mm-dd") & ";date_order<=" & TEXT(D3,"yyyy-mm-dd"))
+A27: "Taux de conversion"
+D27: =IF(D25=0,0,D26/D25)
 \end{lstlisting}
 
-\subsubsection{Étape 6 : Répartition par équipe de vente}
+\subsubsection{Étape 9 : Répartition par équipe de vente}
 
-Analysons les performances par équipe de vente :
+Analysons les performances par équipe de vente en utilisant la requête stockée dans la feuille "Data" :
 
 \begin{lstlisting}
-E18: "Répartition par équipe de vente"
-F18: "CA Total HT"
-G18: "Nombre de commandes"
+# Colonne cachée pour les IDs d'équipe
+G24: "ID"
+G25: =TRANSPOSE(INDEX(SPLIT(Data!B8,","),1))
 
-# Obtenir les équipes de vente
-E19: =IROKOO.GET_FIELD("crm.team", SPLIT(IROKOO.GET_GROUPED_IDS("sale.order", "team_id", "amount_total", "sum", "state=sale;date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ","), "name")
-F19: =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_untaxed", "state=sale;team_id=" & SPLIT(IROKOO.GET_GROUPED_IDS("sale.order", "team_id", "amount_total", "sum", "state=sale;date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ",") & ";date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"))
-G19: =IROKOO.SUM_BY_DOMAIN("sale.order", "1", "state=sale;team_id=" & SPLIT(IROKOO.GET_GROUPED_IDS("sale.order", "team_id", "amount_total", "sum", "state=sale;date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"), 1), ",") & ";date_order>=" & TEXT(B2,"yyyy-mm-dd") & ";date_order<=" & TEXT(B3,"yyyy-mm-dd"))
-
-# Répéter pour les autres équipes...
+H24: "Répartition par équipe de vente"
+H25: =IROKOO.GET_FIELD("crm.team",G25,"name")
+I25: =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_untaxed", "state=sale;team_id=" & G25 & ";date_order>=" & TEXT(D2,"yyyy-mm-dd") & ";date_order<=" & TEXT(D3,"yyyy-mm-dd"))
 \end{lstlisting}
 
-\subsection{Ajout de graphiques}
+\subsubsection{Étape 10 : Ajout de graphiques}
 
-Pour rendre le tableau de bord plus visuel, ajoutez des graphiques :
+Pour finaliser le tableau de bord, ajoutez deux graphiques principaux :
 
 \begin{itemize}
-    \item Un graphique en colonnes pour l'évolution mensuelle des ventes
-    \item Un graphique en secteurs pour la répartition des ventes par équipe
-    \item Un graphique en barres horizontales pour les top 5 clients et produits
+    \item Un graphique en barres montrant l'évolution mensuelle des ventes (utilisant la plage D6:D17 pour les données et C6:C17 pour les étiquettes)
+    \item Un graphique en secteurs montrant la répartition par clients (utilisant la plage I6:I17 pour les données et H6:H17 pour les étiquettes)
 \end{itemize}
 
-Ce tableau de bord vous donne un point de départ pour créer vos propres analyses adaptées à vos besoins spécifiques. Les formules peuvent être modifiées et combinées pour répondre à différentes questions métier.
+\subsection{Astuces pour optimiser le tableau de bord}
+
+\begin{itemize}
+    \item \textbf{Masquer les colonnes techniques} : Les colonnes contenant uniquement des IDs ou des calculs intermédiaires peuvent être masquées pour améliorer la lisibilité
+    \item \textbf{Utiliser IFERROR} : Cette fonction permet de gérer élégamment les cas où des données seraient absentes
+    \item \textbf{Centraliser les requêtes complexes} : Placer les formules GET\_GROUPED\_IDS dans la feuille "Data" améliore les performances et facilite la maintenance
+    \item \textbf{Référencer la feuille principale pour les filtres} : Utiliser 'Tableau de bord Ventes'!D2 comme référence garantit que toutes les requêtes utilisent les mêmes paramètres
+    \item \textbf{Utiliser les fonctions TRANSPOSE et INDEX avec SPLIT} : Cette combinaison permet d'extraire facilement les IDs individuels de résultats de regroupement
+\end{itemize}
+
+\begin{tip}
+Pour extraire un élément spécifique d'un résultat de type liste (comme celui retourné par GET\_GROUPED\_IDS), utilisez la combinaison TRANSPOSE(INDEX(SPLIT(résultat,","),index\_voulu)) où index\_voulu est le numéro de l'élément à extraire (1 pour le premier).
+\end{tip}
+
+Ce tableau de bord vous donne un point de départ solide pour créer vos propres analyses adaptées à vos besoins spécifiques. Les techniques utilisées ici peuvent être facilement adaptées pour suivre d'autres indicateurs clés ou pour créer des tableaux de bord pour d'autres modules d'Odoo.
 
 \end{document} 

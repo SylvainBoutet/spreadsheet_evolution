@@ -28,22 +28,42 @@
 \contentsline {subsubsection}{\numberline {2.5.2}Paramètres}{7}{subsubsection.2.5.2}%
 \contentsline {subsubsection}{\numberline {2.5.3}Retourne}{7}{subsubsection.2.5.3}%
 \contentsline {subsubsection}{\numberline {2.5.4}Exemple}{7}{subsubsection.2.5.4}%
-\contentsline {section}{\numberline {3}Utilisation avancée}{8}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Combinaison de formules}{8}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}Filtres avec l'opérateur IN}{8}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}Conseils pour les performances}{8}{subsection.3.3}%
-\contentsline {subsection}{\numberline {3.4}Utilisation de cellules de référence comme filtres}{9}{subsection.3.4}%
-\contentsline {subsection}{\numberline {3.5}Conseils pour l'optimisation}{9}{subsection.3.5}%
-\contentsline {section}{\numberline {4}Dépannage}{9}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Erreurs courantes}{9}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}Problèmes d'accès}{10}{subsection.4.2}%
-\contentsline {section}{\numberline {5}Exemple de tableau de bord}{10}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Objectif du tableau de bord}{10}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}Implémentation étape par étape}{10}{subsection.5.2}%
-\contentsline {subsubsection}{\numberline {5.2.1}Étape 1 : Préparation des données de référence}{10}{subsubsection.5.2.1}%
-\contentsline {subsubsection}{\numberline {5.2.2}Étape 2 : Évolution mensuelle des ventes}{11}{subsubsection.5.2.2}%
-\contentsline {subsubsection}{\numberline {5.2.3}Étape 3 : Top 5 clients}{11}{subsubsection.5.2.3}%
-\contentsline {subsubsection}{\numberline {5.2.4}Étape 4 : Top 5 produits}{11}{subsubsection.5.2.4}%
-\contentsline {subsubsection}{\numberline {5.2.5}Étape 5 : Taux de conversion des devis}{12}{subsubsection.5.2.5}%
-\contentsline {subsubsection}{\numberline {5.2.6}Étape 6 : Répartition par équipe de vente}{12}{subsubsection.5.2.6}%
-\contentsline {subsection}{\numberline {5.3}Ajout de graphiques}{13}{subsection.5.3}%
+\contentsline {subsection}{\numberline {2.6}IROKOO.COUNT\_BY\_DOMAIN}{8}{subsection.2.6}%
+\contentsline {subsubsection}{\numberline {2.6.1}Syntaxe}{8}{subsubsection.2.6.1}%
+\contentsline {subsubsection}{\numberline {2.6.2}Paramètres}{8}{subsubsection.2.6.2}%
+\contentsline {subsubsection}{\numberline {2.6.3}Retourne}{8}{subsubsection.2.6.3}%
+\contentsline {subsubsection}{\numberline {2.6.4}Exemple}{8}{subsubsection.2.6.4}%
+\contentsline {section}{\numberline {3}Utilisation avancée}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Combinaison de formules}{9}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Filtres avec l'opérateur IN}{9}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Système de mise en cache}{9}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Conseils pour les performances}{9}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Utilisation de cellules de référence comme filtres}{10}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Gestion des dates}{10}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}Conseils pour l'optimisation}{10}{subsection.3.7}%
+\contentsline {section}{\numberline {4}Dépannage}{11}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Erreurs courantes}{11}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Problèmes de chargement}{11}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Problèmes d'accès}{11}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Aspects techniques et défis rencontrés}{12}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Chargement asynchrone des données}{12}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Simulation de GET\_FIELD pour résoudre les blocages}{12}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Système de cache intelligent}{12}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Gestion des erreurs et résilience}{12}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Optimisation de COUNT\_BY\_DOMAIN}{13}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Conseils de développement pour l'extension}{13}{subsection.5.6}%
+\contentsline {section}{\numberline {6}Exemple de tableau de bord}{13}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Objectif du tableau de bord}{13}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Architecture à deux feuilles}{14}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Implémentation étape par étape}{14}{subsection.6.3}%
+\contentsline {subsubsection}{\numberline {6.3.1}Étape 1 : Création et paramétrage des feuilles}{14}{subsubsection.6.3.1}%
+\contentsline {subsubsection}{\numberline {6.3.2}Étape 2 : Préparation des données de référence dans l'onglet principal}{14}{subsubsection.6.3.2}%
+\contentsline {subsubsection}{\numberline {6.3.3}Étape 3 : Préparation des requêtes complexes dans la feuille Data}{15}{subsubsection.6.3.3}%
+\contentsline {subsubsection}{\numberline {6.3.4}Étape 4 : Configuration des colonnes de dates et périodes}{15}{subsubsection.6.3.4}%
+\contentsline {subsubsection}{\numberline {6.3.5}Étape 5 : Évolution mensuelle des ventes}{15}{subsubsection.6.3.5}%
+\contentsline {subsubsection}{\numberline {6.3.6}Étape 6 : Configuration des Top 5 clients}{16}{subsubsection.6.3.6}%
+\contentsline {subsubsection}{\numberline {6.3.7}Étape 7 : Configuration des Top 5 produits}{16}{subsubsection.6.3.7}%
+\contentsline {subsubsection}{\numberline {6.3.8}Étape 8 : Taux de conversion des devis}{17}{subsubsection.6.3.8}%
+\contentsline {subsubsection}{\numberline {6.3.9}Étape 9 : Répartition par équipe de vente}{17}{subsubsection.6.3.9}%
+\contentsline {subsubsection}{\numberline {6.3.10}Étape 10 : Ajout de graphiques}{17}{subsubsection.6.3.10}%
+\contentsline {subsection}{\numberline {6.4}Astuces pour optimiser le tableau de bord}{17}{subsection.6.4}%
