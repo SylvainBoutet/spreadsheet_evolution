@@ -5,9 +5,20 @@
     "category": "Tools",
     "version": "18.0.0.0.1",
     "description": """
-    Addons Spreadsheet
+    Module éducatif pour étendre les spreadsheets Odoo avec des formules personnalisées.
+    
+    ⚠️ ATTENTION : Module fourni à des fins éducatives uniquement.
+    Aucun support officiel n'est assuré par l'auteur.
+    
+    Fonctionnalités :
+    - Formules IROKOO.GET_FIELD pour accéder aux champs
+    - Formules IROKOO.GET_IDS pour rechercher des enregistrements  
+    - Formules IROKOO.GET_SUM pour calculer des sommes
+    - Formules IROKOO.GET_GROUPED_IDS pour les regroupements
+    
+    Voir README.md et EXAMPLES.md pour la documentation complète.
     """,
-    "license": "LGPL-3",
+    "license": "MIT",
     "depends": [
         "spreadsheet",
     ],
