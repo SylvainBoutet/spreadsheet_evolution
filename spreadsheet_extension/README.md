@@ -1,6 +1,21 @@
 # Spreadsheet Extension - Module Éducatif Odoo
 
-> ⚠️ **Module Éducatif** : Ce module est fourni à des fins éducatives uniquement. Aucun support officiel n'est assuré.
+> ⚠️ **AVERTISSEMENT - USAGE ÉDUCATIF UNIQUEMENT** ⚠️
+> 
+> Ce module est fourni **exclusivement à des fins d'apprentissage et de démonstration**.
+> 
+> **🚫 INTERDIT EN PRODUCTION** sans tests approfondis et validation complète
+> 
+> **📋 CONDITIONS D'USAGE :**
+> - ✅ Apprentissage et formation
+> - ✅ Développement et tests en environnement isolé
+> - ✅ Étude de l'architecture Odoo
+> - ❌ Déploiement en production tel quel
+> - ❌ Usage commercial sans validation
+> 
+> **⚖️ RESPONSABILITÉ :** Toute utilisation en environnement de production ou commercial se fait sous votre entière responsabilité. L'auteur décline toute responsabilité en cas de dysfonctionnement, perte de données ou problème de sécurité.
+> 
+> **🔒 SÉCURITÉ :** Ce module n'a pas fait l'objet d'un audit de sécurité. Il peut contenir des vulnérabilités. Ne l'utilisez jamais sur des données sensibles ou en production.
 
 ## 📋 Description
 
@@ -172,15 +187,26 @@ Le système gère automatiquement :
 - Le cache améliore les performances mais consomme de la mémoire
 - Évitez les formules trop complexes sur de gros volumes
 
-### Sécurité
-- Les formules respectent les droits d'accès Odoo
-- Pas de validation supplémentaire des paramètres
-- À utiliser uniquement par des utilisateurs de confiance
+### 🔒 Sécurité - IMPORTANT
+- **Aucun audit de sécurité** n'a été effectué sur ce module
+- Les formules respectent les droits d'accès Odoo mais **sans validation supplémentaire**
+- **Risques potentiels** : injection de code, accès non autorisé aux données
+- À utiliser **uniquement par des utilisateurs de confiance** en environnement de test
+- **JAMAIS en production** sans audit de sécurité complet
+- **Pas de chiffrement** des données en cache
+- **Logs de debug** peuvent contenir des informations sensibles
 
 ### Compatibilité
 - Testé sur Odoo 18.0
 - Dépend du module `spreadsheet` standard
 - Peut nécessiter des adaptations pour d'autres versions
+
+### 🚨 Avertissements Supplémentaires
+- **Données sensibles** : Ne jamais utiliser avec des données confidentielles
+- **Environnement isolé** : Tests uniquement sur des instances de développement
+- **Sauvegarde** : Toujours sauvegarder avant installation
+- **Monitoring** : Surveiller les performances et les logs d'erreur
+- **Mise à jour** : Module non maintenu - pas de correctifs de sécurité garantis
 
 ## 🎓 Exercices Pédagogiques
 
