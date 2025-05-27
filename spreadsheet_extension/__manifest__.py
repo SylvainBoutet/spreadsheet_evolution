@@ -18,7 +18,7 @@
     
     Voir README.md et EXAMPLES.md pour la documentation complète.
     """,
-    "license": "MIT",
+    "license": "LGPL-3",
     "depends": [
         "spreadsheet",
     ],

@@ -1,36 +1,54 @@
-MIT License
+GNU LESSER GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
 
-Copyright (c) 2024 Sylvain Boutet - IROKOO
+Copyright (C) 2024 Sylvain Boutet - IROKOO
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Lesser General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 
----
+================================================================================
+EDUCATIONAL PURPOSE DISCLAIMER
+================================================================================
 
-EDUCATIONAL PURPOSE DISCLAIMER:
+⚠️ IMPORTANT NOTICE: This software is provided EXCLUSIVELY for educational 
+and learning purposes.
 
-This module is provided for educational purposes only. The original author 
-(Sylvain Boutet) and IROKOO do not provide any official support, maintenance, 
-or warranty for this software. 
+🚫 PROHIBITED USES:
+- Production deployment without extensive testing and security audit
+- Commercial use without proper validation and support infrastructure
+- Use with sensitive or confidential data
+- Deployment in mission-critical environments
 
-Use this module to learn about Odoo spreadsheet extensions, but do not expect 
-ongoing support or updates. You are encouraged to study, modify, and improve 
-the code for your own learning purposes.
+✅ PERMITTED USES:
+- Educational and training purposes
+- Development and testing in isolated environments
+- Study of Odoo spreadsheet extension architecture
+- Creation of derivative educational materials
 
-For any commercial use or production deployment, you assume full responsibility 
-for testing, maintenance, and support. 
+⚖️ LIABILITY DISCLAIMER:
+The author (Sylvain Boutet) and IROKOO disclaim ALL liability for:
+- Data loss or corruption
+- Security vulnerabilities
+- System failures or downtime
+- Any damages resulting from use of this software
+
+🔒 SECURITY WARNING:
+This software has NOT undergone security auditing. It may contain 
+vulnerabilities. NEVER use with production data or in secure environments.
+
+📞 NO SUPPORT:
+No technical support, maintenance, or updates are provided. Users assume 
+full responsibility for any deployment or modification.
+
+By using this software, you acknowledge that you have read, understood, 
+and agree to these terms and limitations. 
