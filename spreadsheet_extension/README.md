@@ -228,7 +228,7 @@ Le système gère automatiquement :
 ## 📝 Notes de Développement
 
 ### Debugging
-Activez le debug en modifiant `DEBUG_FORMULAS = true` dans `irokoo_formulas.js`.
+Activez le debug en modifiant `DEBUG_FORMULAS = true` dans `static/src/js/utils.js`.
 
 ### Tests
 Le module inclut des mécanismes d'initialisation sécurisée qui fonctionnent même sans données de test.

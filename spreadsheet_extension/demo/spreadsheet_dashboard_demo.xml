@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="spreadsheet_dashboard_group_irokoo" model="spreadsheet.dashboard.group">
+        <field name="name">IROKOO formulas</field>
+        <field name="sequence">1000</field>
+    </record>
+
+    <record id="spreadsheet_dashboard_irokoo_formulas" model="spreadsheet.dashboard">
+        <field name="name">IROKOO formulas examples</field>
+        <field name="spreadsheet_binary_data" type="base64" file="spreadsheet_extension/demo/irokoo_formulas_dashboard.json"/>
+        <field name="dashboard_group_id" ref="spreadsheet_dashboard_group_irokoo"/>
+        <field name="group_ids" eval="[Command.link(ref('base.group_user'))]"/>
+        <field name="sequence">10</field>
+        <field name="is_published">True</field>
+    </record>
+
+</odoo>

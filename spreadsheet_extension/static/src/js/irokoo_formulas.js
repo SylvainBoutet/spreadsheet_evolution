@@ -3,13 +3,122 @@
 import { _t } from "@web/core/l10n/translation";
 import * as spreadsheet from "@odoo/o-spreadsheet";
 import { EvaluationError } from "@odoo/o-spreadsheet";
-import { session } from "@web/session";
-
-// Debug flag - set to true to enable advanced debugging
-const DEBUG_FORMULAS = true;
+import { debugLog, NO_RESULTS } from "./utils";
 
 const { functionRegistry } = spreadsheet.registries;
 const { arg, toString, toNumber } = spreadsheet.helpers;
+
+/**
+ * Parse a single filter of IROKOO.SUM_BY_DOMAIN and IROKOO.COUNT_BY_DOMAIN
+ * into a domain condition (numeric values are converted to numbers).
+ *
+ * @param {string} filterStr
+ * @returns {Array|null}
+ */
+function parseDomainFilter(filterStr) {
+    if (!filterStr || typeof filterStr !== 'string') return null;
+
+    filterStr = filterStr.trim();
+    if (filterStr === '') return null;
+
+    let field, operator, value;
+
+    // Explicit format "field:operator:value"
+    if (filterStr.includes(':')) {
+        const parts = filterStr.split(':');
+        if (parts.length >= 3) {
+            field = parts[0].trim();
+            operator = parts[1].trim();
+            value = parts.slice(2).join(':').trim(); // The value may contain ":" too
+
+            // "in" operator with comma-separated values
+            if (operator.toLowerCase() === 'in' && value.includes(',')) {
+                const values = value.split(',').map(v => v.trim());
+                return [field, 'in', values];
+            }
+
+            // Convert to a number when possible
+            if (!isNaN(parseFloat(value))) {
+                value = parseFloat(value);
+            }
+
+            return [field, operator, value];
+        }
+    }
+
+    // Format "field~value" for ilike (legacy format)
+    if (filterStr.includes('~')) {
+        const parts = filterStr.split('~');
+        field = parts[0].trim();
+        value = parts.slice(1).join('~').trim();
+        return [field, 'ilike', value];
+    }
+
+    // Detect a LIKE/ILIKE search with %
+    const hasPercentage = filterStr.includes('%');
+
+    // Format "field=value" (or ILIKE when the value contains %)
+    if (filterStr.includes('=')) {
+        const parts = filterStr.split('=');
+        field = parts[0].trim();
+        value = parts.slice(1).join('=').trim(); // The value may contain "=" too
+
+        if (hasPercentage && value.includes('%')) {
+            operator = 'ilike';
+        } else {
+            operator = '=';
+        }
+
+        // Convert to a number when possible
+        if (!isNaN(parseFloat(value))) {
+            value = parseFloat(value);
+        }
+
+        return [field, operator, value];
+    }
+
+    // Format "field>value" or "field<value"
+    if (filterStr.includes('>')) {
+        const parts = filterStr.split('>');
+        field = parts[0].trim();
+        value = parts.slice(1).join('>').trim();
+        return [field, '>', value];
+    }
+
+    if (filterStr.includes('<')) {
+        const parts = filterStr.split('<');
+        field = parts[0].trim();
+        value = parts.slice(1).join('<').trim();
+        return [field, '<', value];
+    }
+
+    // Format "field!=value" or "field!value"
+    if (filterStr.includes('!=')) {
+        const parts = filterStr.split('!=');
+        field = parts[0].trim();
+        value = parts.slice(1).join('!=').trim();
+
+        // Convert to a number when possible
+        if (!isNaN(parseFloat(value))) {
+            value = parseFloat(value);
+        }
+
+        return [field, '!=', value];
+    } else if (filterStr.includes('!')) {
+        const parts = filterStr.split('!');
+        field = parts[0].trim();
+        value = parts.slice(1).join('!').trim();
+
+        // Convert to a number when possible
+        if (!isNaN(parseFloat(value))) {
+            value = parseFloat(value);
+        }
+
+        return [field, '!=', value];
+    }
+
+    return null;
+}
 
 functionRegistry.add("IROKOO.GET_FIELD", {
     description: _t("Get a field value from any record"),
@@ -28,28 +137,28 @@ functionRegistry.add("IROKOO.GET_FIELD", {
         if (!_model || !_id || !_field) {
             throw new EvaluationError(_t("All parameters are required"));
         }
-        
-        // ASTUCE: Initialisation sécurisée qui fonctionne pour tout utilisateur
+
+        // Safe initialization that works for any user
         try {
             if (this.getters && this.getters.getFieldValue) {
-                // Obtenir d'abord l'accès aux données serveur pour amorcer le système
+                // First get access to the server data to prime the system
                 if (this.getters.getOdooServerData) {
                     const serverData = this.getters.getOdooServerData();
-                    
-                    // Si disponible, tenter d'accéder à l'ID de l'utilisateur courant
+
+                    // When available, try to read the current user ID
                     if (serverData && serverData.user && serverData.user.id) {
                         try {
                             this.getters.getFieldValue("res.users", serverData.user.id, "id");
-                            console.log(`GET_FIELD - Initialisation avec utilisateur courant ID=${serverData.user.id}`);
+                            debugLog(`GET_FIELD - Initialization with current user ID=${serverData.user.id}`);
                         } catch (innerE) {
-                            // Ignorer si échec
+                            // Ignore failures
                         }
                     }
                 }
-                
-                // Essayer aussi directement avec le modèle demandé
+
+                // Also try directly with the requested model
                 try {
-                    // Rechercher un ID existant et accessible dans le modèle demandé
+                    // Search an existing and accessible ID in the requested model
                     const basicSearch = this.getters.searchRecords(_model, [["id", ">", "0"]], { limit: 1 });
                     if (basicSearch && basicSearch.value) {
                         let firstId;
@@ -58,18 +167,18 @@ functionRegistry.add("IROKOO.GET_FIELD", {
                         } else if (Array.isArray(basicSearch.value) && basicSearch.value.length > 0) {
                             firstId = parseInt(basicSearch.value[0]);
                         }
-                        
+
                         if (firstId) {
                             this.getters.getFieldValue(_model, firstId, "id");
-                            console.log(`GET_FIELD - Initialisation avec ${_model} ID=${firstId}`);
+                            debugLog(`GET_FIELD - Initialization with ${_model} ID=${firstId}`);
                         }
                     }
                 } catch (modelE) {
-                    // Ignorer si échec
+                    // Ignore failures
                 }
             }
         } catch (e) {
-            // Ignorer les erreurs
+            // Ignore errors
         }
 
         return {
@@ -91,81 +200,78 @@ functionRegistry.add("IROKOO.GET_IDS", {
     category: "Odoo",
     returns: ["STRING"],
     compute: function (model, order, direction, limit, filters) {
-        // Convertir les arguments
+        // Convert the arguments
         const _model = toString(model);
         const orderField = toString(order);
         const orderDirection = toString(direction);
         const _limit = toNumber(limit, this.locale);
         const filtersStr = toString(filters);
-        
-        // Construire le domaine à partir de la chaîne de filtres
+
+        // Build the domain from the filters string
         const domain = [];
-        
-        // Fonction pour traiter un filtre individuel
+
+        // Parse a single filter
         function parseFilter(filterStr) {
             if (!filterStr || typeof filterStr !== 'string') return null;
-            
+
             filterStr = filterStr.trim();
             if (filterStr === '') return null;
-            
+
             let field, operator, value;
-            
-            // Format explicite "field:operator:value"
+
+            // Explicit format "field:operator:value"
             if (filterStr.includes(':')) {
                 const parts = filterStr.split(':');
                 if (parts.length >= 3) {
                     field = parts[0].trim();
                     operator = parts[1].trim();
-                    value = parts.slice(2).join(':').trim(); // Au cas où la valeur contient aussi des ":"
+                    value = parts.slice(2).join(':').trim(); // The value may contain ":" too
                     return [field, operator, value];
                 }
             }
-            
-            // Format "field~value" pour ilike (ancien format)
+
+            // Format "field~value" for ilike (legacy format)
             if (filterStr.includes('~')) {
                 const parts = filterStr.split('~');
                 field = parts[0].trim();
                 value = parts.slice(1).join('~').trim();
                 return [field, 'ilike', value];
             }
-            
-            // Détecter si c'est une recherche de type LIKE/ILIKE avec %
+
+            // Detect a LIKE/ILIKE search with %
             const hasPercentage = filterStr.includes('%');
-            let isLikeSearch = false;
-            
-            // Format "field=value" (ou LIKE si contient %)
+
+            // Format "field=value" (or ILIKE when the value contains %)
             if (filterStr.includes('=')) {
                 const parts = filterStr.split('=');
                 field = parts[0].trim();
-                value = parts.slice(1).join('=').trim(); // Au cas où la valeur contient aussi des "="
-                
-                // Si la valeur contient % et que ce n'est pas au début (éviter les confusions avec les calculs %)
+                value = parts.slice(1).join('=').trim(); // The value may contain "=" too
+
                 if (hasPercentage && value.includes('%')) {
-                    isLikeSearch = true;
                     operator = 'ilike';
                 } else {
                     operator = '=';
                 }
-                
+
                 return [field, operator, value];
             }
-            
-            // Format "field>value" ou "field<value"
+
+            // Format "field>value" or "field<value"
             if (filterStr.includes('>')) {
                 const parts = filterStr.split('>');
                 field = parts[0].trim();
                 value = parts.slice(1).join('>').trim();
                 return [field, '>', value];
             }
-            
+
             if (filterStr.includes('<')) {
                 const parts = filterStr.split('<');
                 field = parts[0].trim();
                 value = parts.slice(1).join('<').trim();
                 return [field, '<', value];
             }
-            
-            // Format "field!=value" ou "field!value"
+
+            // Format "field!=value" or "field!value"
             if (filterStr.includes('!=')) {
                 const parts = filterStr.split('!=');
                 field = parts[0].trim();
@@ -177,14 +283,14 @@ functionRegistry.add("IROKOO.GET_IDS", {
                 value = parts.slice(1).join('!').trim();
                 return [field, '!=', value];
             }
-            
+
             return null;
         }
-        
-        // Découper la chaîne de filtres en filtres individuels (séparés par des points-virgules)
+
+        // Split the filters string into single filters (separated by semicolons)
         if (filtersStr && filtersStr.trim() !== '') {
             const filterArray = filtersStr.split(';');
-            
+
             for (const filter of filterArray) {
                 const domainItem = parseFilter(filter);
                 if (domainItem) {
@@ -192,28 +298,28 @@ functionRegistry.add("IROKOO.GET_IDS", {
                 }
             }
         }
-        
-        // ASTUCE: Initialisation sécurisée qui fonctionne pour tout utilisateur
+
+        // Safe initialization that works for any user
         try {
             if (this.getters && this.getters.getFieldValue) {
-                // Obtenir d'abord l'accès aux données serveur pour amorcer le système
+                // First get access to the server data to prime the system
                 if (this.getters.getOdooServerData) {
                     const serverData = this.getters.getOdooServerData();
-                    
-                    // Si disponible, tenter d'accéder à l'ID de l'utilisateur courant
+
+                    // When available, try to read the current user ID
                     if (serverData && serverData.user && serverData.user.id) {
                         try {
                             this.getters.getFieldValue("res.users", serverData.user.id, "id");
-                            console.log(`GET_IDS - Initialisation avec utilisateur courant ID=${serverData.user.id}`);
+                            debugLog(`GET_IDS - Initialization with current user ID=${serverData.user.id}`);
                         } catch (innerE) {
-                            // Ignorer si échec
+                            // Ignore failures
                         }
                     }
                 }
-                
-                // Essayer aussi directement avec le modèle demandé et un ID général
+
+                // Also try directly with the requested model and a generic ID
                 try {
-                    // Rechercher un ID existant et accessible dans le modèle demandé
+                    // Search an existing and accessible ID in the requested model
                     const basicSearch = this.getters.searchRecords(_model, [["id", ">", "0"]], { limit: 1 });
                     if (basicSearch && basicSearch.value) {
                         let firstId;
@@ -222,39 +328,39 @@ functionRegistry.add("IROKOO.GET_IDS", {
                         } else if (Array.isArray(basicSearch.value) && basicSearch.value.length > 0) {
                             firstId = parseInt(basicSearch.value[0]);
                         }
-                        
+
                         if (firstId) {
                             this.getters.getFieldValue(_model, firstId, "id");
-                            console.log(`GET_IDS - Initialisation avec ${_model} ID=${firstId}`);
+                            debugLog(`GET_IDS - Initialization with ${_model} ID=${firstId}`);
                         }
                     }
                 } catch (modelE) {
-                    // Ignorer si échec
+                    // Ignore failures
                 }
             }
         } catch (e) {
-            // Ignorer les erreurs
+            // Ignore errors
         }
-        
+
         try {
-            const result = this.getters.searchRecords(_model, domain, { 
+            const result = this.getters.searchRecords(_model, domain, {
                 order: [[orderField, orderDirection]],
                 limit: _limit > 0 ? _limit : false
             });
-            
+
             if (!result.value) {
-                // Si aucun résultat n'est trouvé et que nous avons essayé de trier, il pourrait s'agir d'un champ calculé non listé
+                // No result while sorting: the sort field may be a non-stored computed field
                 if (orderField && orderField !== 'id' && orderField !== 'name') {
-                    // Essayons sans tri pour voir si c'est le tri qui cause le problème
+                    // Try without sorting to check whether the sort causes the problem
                     const testResult = this.getters.searchRecords(_model, domain, { limit: 1 });
                     if (testResult.value) {
-                        // Si nous obtenons des résultats sans tri, c'est que le problème vient du champ de tri
+                        // Results without sorting: the sort field is the problem
                         throw new EvaluationError(_t("Unable to sort by field '") + orderField + _t("'. It might be a computed field or not exist on the model. Please use a different field for sorting or try IROKOO.GET_GROUPED_IDS for aggregations."));
                     }
                 }
-                
-                return { 
-                    value: "No results found", 
+
+                return {
+                    value: NO_RESULTS,
                     format: "@",
                     requiresRefresh: false
                 };
@@ -266,7 +372,7 @@ functionRegistry.add("IROKOO.GET_IDS", {
                 requiresRefresh: result.requiresRefresh,
             };
         } catch (error) {
-            // Si l'erreur vient d'ailleurs (API, etc.), la transformer en EvaluationError
+            // Errors coming from elsewhere (API, etc.) are converted into EvaluationError
             if (!(error instanceof EvaluationError)) {
                 throw new EvaluationError(_t("Error while executing search: ") + error.message);
             }
@@ -288,43 +394,43 @@ functionRegistry.add("IROKOO.GET_SUM", {
         const _model = toString(model);
         const _field = toString(field);
         const idsStr = toString(ids);
-        
-        // Vérifier si nous avons reçu le message "Aucun résultat trouvé" de GET_IDS
-        if (idsStr === "Aucun résultat trouvé") {
+
+        // GET_IDS returned its "no results" message
+        if (idsStr === NO_RESULTS) {
             return {
-                value: "Aucun résultat à additionner",
+                value: "No results to sum",
                 format: "@",
                 requiresRefresh: false
             };
         }
-        
-        // ASTUCE: Initialisation sécurisée qui fonctionne pour tout utilisateur
+
+        // Safe initialization that works for any user
         try {
             if (this.getters && this.getters.getFieldValue) {
-                // Obtenir d'abord l'accès aux données serveur pour amorcer le système
+                // First get access to the server data to prime the system
                 if (this.getters.getOdooServerData) {
                     const serverData = this.getters.getOdooServerData();
-                    
-                    // Si disponible, tenter d'accéder à l'ID de l'utilisateur courant
+
+                    // When available, try to read the current user ID
                     if (serverData && serverData.user && serverData.user.id) {
                         try {
                             this.getters.getFieldValue("res.users", serverData.user.id, "id");
-                            console.log(`GET_SUM - Initialisation avec utilisateur courant ID=${serverData.user.id}`);
+                            debugLog(`GET_SUM - Initialization with current user ID=${serverData.user.id}`);
                         } catch (innerE) {
-                            // Ignorer si échec
+                            // Ignore failures
                         }
                     }
                 }
-                
-                // Essayer d'abord avec un ID de la liste fournie
+
+                // First try with an ID of the given list
                 try {
-                    // Prendre le premier ID de la liste si possible
+                    // Take the first ID of the list when possible
                     const firstId = idsStr.split(',')[0];
                     if (firstId && !isNaN(parseInt(firstId))) {
                         this.getters.getFieldValue(_model, parseInt(firstId), "id");
-                        console.log(`GET_SUM - Initialisation avec ${_model} ID=${firstId}`);
+                        debugLog(`GET_SUM - Initialization with ${_model} ID=${firstId}`);
                     } else {
-                        // Sinon essayer avec une recherche basique
+                        // Otherwise try with a basic search
                         const basicSearch = this.getters.searchRecords(_model, [["id", ">", "0"]], { limit: 1 });
                         if (basicSearch && basicSearch.value) {
                             let availableId;
@@ -333,42 +439,42 @@ functionRegistry.add("IROKOO.GET_SUM", {
                             } else if (Array.isArray(basicSearch.value) && basicSearch.value.length > 0) {
                                 availableId = parseInt(basicSearch.value[0]);
                             }
-                            
+
                             if (availableId) {
                                 this.getters.getFieldValue(_model, availableId, "id");
-                                console.log(`GET_SUM - Initialisation avec ${_model} ID=${availableId}`);
+                                debugLog(`GET_SUM - Initialization with ${_model} ID=${availableId}`);
                             }
                         }
                     }
                 } catch (innerError) {
-                    // Si cela échoue, ce n'est pas grave
-                    console.log(`GET_SUM - Échec de l'initialisation:`, innerError);
+                    // Not a problem if this fails
+                    debugLog(`GET_SUM - Initialization failed:`, innerError);
                 }
             }
         } catch (e) {
-            // Ignorer les erreurs
+            // Ignore errors
         }
-        
+
         const result = this.getters.sumRecords(_model, _field, idsStr);
-        
-        // Si on a besoin d'un refresh, on propage cette info
+
+        // Propagate the refresh request
         if (result.requiresRefresh) {
             return { value: result.value, requiresRefresh: true };
         }
-        
-        // Si le résultat est vide ou égal à 0, afficher un message approprié
+
+        // Empty result: display a message
         if (!result.value && result.value !== 0) {
             return {
-                value: "Aucune valeur à additionner",
+                value: "No values to sum",
                 format: "@",
                 requiresRefresh: false
             };
         }
-        
-        // Sinon on retourne la valeur formatée
+
+        // Otherwise return the formatted value
         return {
             value: result.value,
-            format: "#,##0.00", // Format nombre avec 2 décimales
+            format: "#,##0.00", // Number format with 2 decimals
         };
     }
 });
@@ -386,8 +492,8 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
     category: "Odoo",
     returns: ["STRING"],
     compute: function (model, group_by, aggregate_field, aggregate_function, filters, limit) {
-        console.log("GET_GROUPED_IDS - Starting with model:", model);
-        
+        debugLog("GET_GROUPED_IDS - Starting with model:", model);
+
         // Convert arguments
         const _model = toString(model);
         const _group_by = toString(group_by);
@@ -395,36 +501,35 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
         const _aggregate_function = toString(aggregate_function).toLowerCase();
         const filtersStr = toString(filters || "");
         const _limit = Number.isNaN(toNumber(limit, this.locale)) ? 0 : toNumber(limit, this.locale);
-        
-        // Utiliser un cache basé sur les paramètres pour éviter les requêtes redondantes
+
+        // Cache keyed on the parameters to avoid redundant requests
         const cacheKey = `${_model}_${_group_by}_${_aggregate_field}_${_aggregate_function}_${filtersStr}_${_limit}`;
-        
-        // Initialise le cache si pas encore créé
+
+        // Create the cache if needed
         if (!this._groupedIdsCache) {
             this._groupedIdsCache = {};
         }
-        
-        // Vérifier si nous avons déjà un résultat en cache
-        if (this._groupedIdsCache[cacheKey] && 
-            this._groupedIdsCache[cacheKey].timestamp > Date.now() - 30000) { // Cache de 30 secondes
-            console.log("GET_GROUPED_IDS - Using cached result for:", cacheKey);
+
+        // Use the cached result when available
+        if (this._groupedIdsCache[cacheKey] &&
+            this._groupedIdsCache[cacheKey].timestamp > Date.now() - 30000) { // 30 seconds cache
+            debugLog("GET_GROUPED_IDS - Using cached result for:", cacheKey);
             return this._groupedIdsCache[cacheKey].result;
         }
-        
+
         // Build domain from filter string
         const domain = [];
-        
+
         if (filtersStr && filtersStr.trim() !== '') {
             const filterArray = filtersStr.split(';');
-            
-            console.log(`GET_GROUPED_IDS - Processing ${filterArray.length} filters from: ${filtersStr}`);
-            
+
+            debugLog(`GET_GROUPED_IDS - Processing ${filterArray.length} filters from: ${filtersStr}`);
+
             for (const filter of filterArray) {
                 const trimmedFilter = filter.trim();
-                
-                // Debug logging for each filter
-                console.log(`GET_GROUPED_IDS - Processing filter: "${trimmedFilter}"`);
-                
+
+                debugLog(`GET_GROUPED_IDS - Processing filter: "${trimmedFilter}"`);
+
                 // Support for explicit format "field:operator:value"
                 if (trimmedFilter.includes(':')) {
                     const parts = trimmedFilter.split(':');
@@ -432,7 +537,7 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                         const field = parts[0].trim();
                         const operator = parts[1].trim();
                         const valueStr = parts.slice(2).join(':').trim();
-                        
+
                         // Support for "in" operator with comma-separated values
                         if (operator.toLowerCase() === 'in' && valueStr.includes(',')) {
                             const values = valueStr.split(',').map(v => v.trim());
@@ -445,34 +550,26 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                         continue; // Skip further processing for this filter
                     }
                 }
-                
-                // Fix: Handle date comparison operators correctly
+
+                // Handle comparison operators
                 if (trimmedFilter.includes('>')) {
                     const parts = trimmedFilter.split('>');
                     const field = parts[0].trim();
                     const value = parts.slice(1).join('>').trim();
-                    
-                    // Special handling for date fields
-                    const isDateField = (field.includes('date') || field.endsWith('_at') || field.endsWith('_on'));
-                    console.log(`GET_GROUPED_IDS - Detected field "${field}" with > operator, isDateField: ${isDateField}`);
-                    
+                    debugLog(`GET_GROUPED_IDS - Detected field "${field}" with > operator`);
                     domain.push([field, '>', value]);
                     continue;
                 }
-                
+
                 if (trimmedFilter.includes('<')) {
                     const parts = trimmedFilter.split('<');
                     const field = parts[0].trim();
                     const value = parts.slice(1).join('<').trim();
-                    
-                    // Special handling for date fields
-                    const isDateField = (field.includes('date') || field.endsWith('_at') || field.endsWith('_on'));
-                    console.log(`GET_GROUPED_IDS - Detected field "${field}" with < operator, isDateField: ${isDateField}`);
-                    
+                    debugLog(`GET_GROUPED_IDS - Detected field "${field}" with < operator`);
                     domain.push([field, '<', value]);
                     continue;
                 }
-                
+
                 // Legacy support for field=value format
                 else if (trimmedFilter.includes('=')) {
                     const [field, value] = trimmedFilter.split('=').map(s => s.trim());
@@ -482,86 +579,83 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                 }
             }
         }
-        
+
         // If no filter, get all records
         if (domain.length === 0) {
             domain.push(['id', '>', '0']);
         }
-        
-        console.log("GET_GROUPED_IDS - Final domain:", JSON.stringify(domain));
-        
+
+        debugLog("GET_GROUPED_IDS - Final domain:", JSON.stringify(domain));
+
         try {
             // Main search to get all records
             const result = this.getters.searchRecords(_model, domain, { limit: 2000 });
-            
-            // Mécanisme de gestion de l'état "loading"
+
+            // Loading state management
             if (result.requiresRefresh) {
-                // On vérifie si nous avons des données partielles utilisables
+                // Check whether usable partial data is available
                 if (result.value && (typeof result.value === 'string' || (Array.isArray(result.value) && result.value.length > 0))) {
-                    console.log(`GET_GROUPED_IDS - Data loading but we have ${Array.isArray(result.value) ? result.value.length : 'some'} results, continuing with partial data`);
-                    
-                    // On sauvegarde cet état dans le cache comme résultat partiel
-                    const partialResult = { 
-                        value: Array.isArray(result.value) ? result.value.join(',') : result.value, 
-                        format: "@", 
-                        requiresRefresh: true 
+                    debugLog(`GET_GROUPED_IDS - Data loading, continuing with partial data`);
+
+                    // Store this state in the cache as a partial result
+                    const partialResult = {
+                        value: Array.isArray(result.value) ? result.value.join(',') : result.value,
+                        format: "@",
+                        requiresRefresh: true
                     };
-                    
+
                     this._groupedIdsCache[cacheKey] = {
                         result: partialResult,
-                        timestamp: Date.now() - 25000 // Expiration rapide pour forcer un refresh bientôt
+                        timestamp: Date.now() - 25000 // Quick expiration to force a refresh soon
                     };
-                    
-                    // Continuer avec les données partielles
+
+                    // Continue with the partial data
                 } else {
-                    console.log(`GET_GROUPED_IDS - Still loading data, no partial results available`);
-                    
-                    // Retourner le résultat du cache si disponible, sinon un message de chargement
+                    debugLog(`GET_GROUPED_IDS - Still loading data, no partial results available`);
+
+                    // Return the cached result if any, otherwise a loading message
                     if (this._groupedIdsCache[cacheKey]) {
-                        console.log(`GET_GROUPED_IDS - Using cached result during refresh`);
+                        debugLog(`GET_GROUPED_IDS - Using cached result during refresh`);
                         const cachedResult = this._groupedIdsCache[cacheKey].result;
-                        return { 
-                            value: cachedResult.value, 
-                            format: cachedResult.format, 
-                            requiresRefresh: true 
+                        return {
+                            value: cachedResult.value,
+                            format: cachedResult.format,
+                            requiresRefresh: true
                         };
                     }
-                    
-                    const loadingResult = { 
-                        value: "Chargement des données...", 
-                        format: "@", 
-                        requiresRefresh: true 
+
+                    const loadingResult = {
+                        value: "Loading data...",
+                        format: "@",
+                        requiresRefresh: true
                     };
-                    
-                    // Sauvegarder cet état de chargement dans le cache
+
+                    // Store this loading state in the cache
                     this._groupedIdsCache[cacheKey] = {
                         result: loadingResult,
-                        timestamp: Date.now() - 25000 // Expiration rapide
+                        timestamp: Date.now() - 25000 // Quick expiration
                     };
-                    
+
                     return loadingResult;
                 }
             }
-            
+
             // Process IDs - handle both string and array formats
             let ids = [];
-            
+
             if (typeof result.value === 'string') {
                 ids = result.value.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
             } else if (Array.isArray(result.value)) {
                 ids = result.value.map(id => parseInt(id)).filter(id => !isNaN(id));
             }
-            
+
             if (!ids.length) {
-                return { value: "Aucun résultat trouvé", format: "@" };
+                return { value: NO_RESULTS, format: "@" };
             }
-            
+
             // Group records by the specified field
             const groups = {};
-            
-            // NEW: Amélioration pour les champs date
-            const isDateField = (_group_by.includes('date') || _group_by.endsWith('_at') || _group_by.endsWith('_on'));
-            
+
             for (const id of ids) {
                 try {
                     // Get group field value with proper error handling
@@ -570,47 +664,47 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                         groupFieldValue = this.getters.getFieldValue(_model, id, _group_by);
                     } catch (fieldError) {
                         // If we get a loading error, request refresh
-                        if (fieldError.name === "LoadingDataError" || 
+                        if (fieldError.name === "LoadingDataError" ||
                             (fieldError.message && fieldError.message.includes("Loading"))) {
-                            // NEW: Si nous avons déjà traité certains enregistrements, continuons plutôt que de recharger
+                            // Some records were already processed: continue instead of reloading
                             if (Object.keys(groups).length > 0) {
-                                console.log(`GET_GROUPED_IDS - Loading error for record ${id}, but continuing with ${Object.keys(groups).length} groups already processed`);
+                                debugLog(`GET_GROUPED_IDS - Loading error for record ${id}, continuing`);
                                 continue;
                             }
-                            
-                            // Sinon demander un refresh
-                            console.log(`GET_GROUPED_IDS - Loading error for group values, requesting refresh`);
-                            return { value: "Chargement des valeurs de groupe...", format: "@", requiresRefresh: true };
+
+                            // Otherwise request a refresh
+                            debugLog(`GET_GROUPED_IDS - Loading error for group values, requesting refresh`);
+                            return { value: "Loading group values...", format: "@", requiresRefresh: true };
                         }
                         // Otherwise skip this record
                         continue;
                     }
-                    
+
                     // Get aggregate field value with proper error handling
                     let aggregateValue;
                     try {
                         aggregateValue = this.getters.getFieldValue(_model, id, _aggregate_field);
                     } catch (fieldError) {
                         // If we get a loading error, request refresh
-                        if (fieldError.name === "LoadingDataError" || 
+                        if (fieldError.name === "LoadingDataError" ||
                             (fieldError.message && fieldError.message.includes("Loading"))) {
-                            // NEW: Si nous avons déjà traité certains enregistrements, continuons plutôt que de recharger
+                            // Some records were already processed: continue instead of reloading
                             if (Object.keys(groups).length > 0) {
-                                console.log(`GET_GROUPED_IDS - Loading error for record ${id}, but continuing with ${Object.keys(groups).length} groups already processed`);
+                                debugLog(`GET_GROUPED_IDS - Loading error for record ${id}, continuing`);
                                 continue;
                             }
-                            
-                            // Sinon demander un refresh
-                            console.log(`GET_GROUPED_IDS - Loading error for aggregate values, requesting refresh`);
-                            return { value: "Chargement des valeurs à agréger...", format: "@", requiresRefresh: true };
+
+                            // Otherwise request a refresh
+                            debugLog(`GET_GROUPED_IDS - Loading error for aggregate values, requesting refresh`);
+                            return { value: "Loading aggregate values...", format: "@", requiresRefresh: true };
                         }
                         // Otherwise skip this record
                         continue;
                     }
-                    
+
                     // Extract group value with thorough handling of different field types
                     let groupValue;
-                    
+
                     if (Array.isArray(groupFieldValue) && groupFieldValue.length > 0) {
                         // Format many2one [id, name]
                         groupValue = groupFieldValue[0];
@@ -629,13 +723,13 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                         // Direct value (string, number, boolean)
                         groupValue = groupFieldValue;
                     }
-                    
+
                     // Skip null/undefined values
                     if (groupValue === null || groupValue === undefined) continue;
-                    
+
                     // Convert aggregate value to number if possible
                     let numValue = null;
-                    
+
                     if (typeof aggregateValue === 'number') {
                         numValue = aggregateValue;
                     } else if (typeof aggregateValue === 'string' && !isNaN(parseFloat(aggregateValue))) {
@@ -649,10 +743,10 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                             numValue = parseFloat(aggregateValue.value);
                         }
                     }
-                    
+
                     // If no numeric value and function is not 'count', skip record
                     if (numValue === null && _aggregate_function !== 'count') continue;
-                    
+
                     // Initialize group if it doesn't exist
                     const groupKey = String(groupValue);
                     if (!groups[groupKey]) {
@@ -661,7 +755,7 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                             values: []
                         };
                     }
-                    
+
                     // For COUNT, always count 1
                     if (_aggregate_function === 'count') {
                         groups[groupKey].values.push(1);
@@ -670,41 +764,41 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                     }
                 } catch (recordError) {
                     // If we get a loading error, request refresh
-                    if (recordError.name === "LoadingDataError" || 
+                    if (recordError.name === "LoadingDataError" ||
                         (recordError.message && recordError.message.includes("Loading"))) {
-                        // NEW: Si nous avons déjà traité suffisamment d'enregistrements, considérons que c'est assez
+                        // Enough records processed: continue with what we have
                         if (Object.keys(groups).length >= Math.max(5, _limit)) {
-                            console.log(`GET_GROUPED_IDS - Loading error but we have ${Object.keys(groups).length} groups, continuing`);
-                            break; // Sortir de la boucle et continuer avec ce que nous avons
+                            debugLog(`GET_GROUPED_IDS - Loading error but enough groups, continuing`);
+                            break;
                         }
-                        
-                        // Sinon, si nous avons déjà quelques groupes, continuons avec les prochains enregistrements
+
+                        // Some groups exist: continue with the next records
                         if (Object.keys(groups).length > 0) {
-                            console.log(`GET_GROUPED_IDS - Loading error for record ${id}, continuing with next record`);
+                            debugLog(`GET_GROUPED_IDS - Loading error for record ${id}, continuing with next record`);
                             continue;
                         }
-                        
-                        console.log(`GET_GROUPED_IDS - Loading error for record data, requesting refresh`);
-                        return { value: "Chargement des données d'enregistrement...", format: "@", requiresRefresh: true };
+
+                        debugLog(`GET_GROUPED_IDS - Loading error for record data, requesting refresh`);
+                        return { value: "Loading record data...", format: "@", requiresRefresh: true };
                     }
                     // Otherwise just continue with next record
-                    console.log(`GET_GROUPED_IDS - Error processing record ID=${id}:`, recordError);
+                    debugLog(`GET_GROUPED_IDS - Error processing record ID=${id}:`, recordError);
                     continue;
                 }
             }
-            
+
             // If no groups were created
             if (Object.keys(groups).length === 0) {
-                return { value: "Aucun groupe trouvé", format: "@" };
+                return { value: "No groups found", format: "@" };
             }
-            
+
             // Calculate aggregated values and sort
             const aggregatedGroups = [];
-            
+
             for (const key in groups) {
                 const group = groups[key];
                 let aggregatedValue = 0;
-                
+
                 if (group.values.length > 0) {
                     switch (_aggregate_function) {
                         case 'sum':
@@ -727,78 +821,73 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                             aggregatedValue = group.values.reduce((sum, val) => sum + val, 0);
                     }
                 }
-                
+
                 aggregatedGroups.push({
                     groupValue: group.value,
                     aggregateValue: aggregatedValue
                 });
             }
-            
+
             // Sort by aggregated value (descending) and limit if necessary
             aggregatedGroups.sort((a, b) => b.aggregateValue - a.aggregateValue);
             const limitedGroups = _limit > 0 ? aggregatedGroups.slice(0, _limit) : aggregatedGroups;
-            
+
             // Return comma-separated list of group values
             const groupValues = limitedGroups.map(g => g.groupValue);
-            console.log("GET_GROUPED_IDS - Result:", groupValues);
-            
-            // NEW: Mettre en cache le résultat pour les futures requêtes
-            if (!this._groupedIdsCache) {
-                this._groupedIdsCache = {};
-            }
-            
+            debugLog("GET_GROUPED_IDS - Result:", groupValues);
+
             const finalResult = { value: groupValues.join(','), format: "@" };
-            
-            // Cache le résultat avec un timestamp
+
+            // Cache the result with a timestamp
             this._groupedIdsCache[cacheKey] = {
                 result: finalResult,
                 timestamp: Date.now()
             };
-            
+
             return finalResult;
-            
+
         } catch (e) {
             // Global error handler
-            
+
             // If data is still loading, return loading indicator
             if (e.name === "LoadingDataError" || (e.message && e.message.includes("Loading"))) {
                 // Check if we have cached result
                 if (this._groupedIdsCache[cacheKey]) {
-                    console.log(`GET_GROUPED_IDS - Loading data, using cached result`);
+                    debugLog(`GET_GROUPED_IDS - Loading data, using cached result`);
                     const cachedResult = this._groupedIdsCache[cacheKey].result;
-                    
-                    return { 
-                        value: cachedResult.value, 
-                        format: cachedResult.format, 
-                        requiresRefresh: true 
+
+                    return {
+                        value: cachedResult.value,
+                        format: cachedResult.format,
+                        requiresRefresh: true
                     };
                 }
-                
-                const loadingResult = { 
-                    value: "Chargement des données...", 
-                    format: "@", 
-                    requiresRefresh: true 
+
+                const loadingResult = {
+                    value: "Loading data...",
+                    format: "@",
+                    requiresRefresh: true
                 };
-                
-                // Sauvegarder l'état de chargement dans le cache
+
+                // Store the loading state in the cache
                 this._groupedIdsCache[cacheKey] = {
                     result: loadingResult,
-                    timestamp: Date.now() - 25000 // Expiration rapide
+                    timestamp: Date.now() - 25000 // Quick expiration
                 };
-                
+
                 return loadingResult;
             }
-            
+
             // Otherwise return error message
-            console.error("GET_GROUPED_IDS - Error:", e);
-            const errorResult = { value: "Erreur: " + e.message, format: "@" };
-            
+            debugLog("GET_GROUPED_IDS - Error:", e);
+            const errorResult = { value: "Error: " + e.message, format: "@" };
+
             // Cache the error result briefly to prevent constant recalculation
             this._groupedIdsCache[cacheKey] = {
                 result: errorResult,
                 timestamp: Date.now() - 20000 // Cache for 10 seconds only
             };
-            
+
             return errorResult;
         }
     }
@@ -817,131 +906,21 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
         const _model = toString(model);
         const _field = toString(field);
         const filtersStr = toString(filters);
-        
-        // Construire le domaine à partir de la chaîne de filtres
+
+        // Build the domain from the filters string
         const domain = [];
-        
-        // Réutiliser la même logique de parsing des filtres que dans GET_IDS
-        function parseFilter(filterStr) {
-            if (!filterStr || typeof filterStr !== 'string') return null;
-            
-            filterStr = filterStr.trim();
-            if (filterStr === '') return null;
-            
-            let field, operator, value;
-            
-            // Format explicite "field:operator:value"
-            if (filterStr.includes(':')) {
-                const parts = filterStr.split(':');
-                if (parts.length >= 3) {
-                    field = parts[0].trim();
-                    operator = parts[1].trim();
-                    value = parts.slice(2).join(':').trim(); // Au cas où la valeur contient aussi des ":"
-                    
-                    // Si c'est un opérateur 'in' avec valeurs séparées par virgules
-                    if (operator.toLowerCase() === 'in' && value.includes(',')) {
-                        const values = value.split(',').map(v => v.trim());
-                        return [field, 'in', values];
-                    }
-                    
-                    // Tenter de convertir en nombre si possible
-                    if (!isNaN(parseFloat(value))) {
-                        value = parseFloat(value);
-                    }
-                    
-                    return [field, operator, value];
-                }
-            }
-            
-            // Format "field~value" pour ilike (ancien format)
-            if (filterStr.includes('~')) {
-                const parts = filterStr.split('~');
-                field = parts[0].trim();
-                value = parts.slice(1).join('~').trim();
-                return [field, 'ilike', value];
-            }
-            
-            // Détecter si c'est une recherche de type LIKE/ILIKE avec %
-            const hasPercentage = filterStr.includes('%');
-            let isLikeSearch = false;
-            
-            // Format "field=value" (ou LIKE si contient %)
-            if (filterStr.includes('=')) {
-                const parts = filterStr.split('=');
-                field = parts[0].trim();
-                value = parts.slice(1).join('=').trim(); // Au cas où la valeur contient aussi des "="
-                
-                // Si la valeur contient % et que ce n'est pas au début (éviter les confusions avec les calculs %)
-                if (hasPercentage && value.includes('%')) {
-                    isLikeSearch = true;
-                    operator = 'ilike';
-                } else {
-                    operator = '=';
-                }
-                
-                // Tenter de convertir en nombre si possible
-                if (!isNaN(parseFloat(value))) {
-                    value = parseFloat(value);
-                }
-                
-                return [field, operator, value];
-            }
-            
-            // Format "field>value" ou "field<value"
-            if (filterStr.includes('>')) {
-                const parts = filterStr.split('>');
-                field = parts[0].trim();
-                value = parts.slice(1).join('>').trim();
-                return [field, '>', value];
-            }
-            
-            if (filterStr.includes('<')) {
-                const parts = filterStr.split('<');
-                field = parts[0].trim();
-                value = parts.slice(1).join('<').trim();
-                return [field, '<', value];
-            }
-            
-            // Format "field!=value" ou "field!value"
-            if (filterStr.includes('!=')) {
-                const parts = filterStr.split('!=');
-                field = parts[0].trim();
-                value = parts.slice(1).join('!=').trim();
-                
-                // Tenter de convertir en nombre si possible
-                if (!isNaN(parseFloat(value))) {
-                    value = parseFloat(value);
-                }
-                
-                return [field, '!=', value];
-            } else if (filterStr.includes('!')) {
-                const parts = filterStr.split('!');
-                field = parts[0].trim();
-                value = parts.slice(1).join('!').trim();
-                
-                // Tenter de convertir en nombre si possible
-                if (!isNaN(parseFloat(value))) {
-                    value = parseFloat(value);
-                }
-                
-                return [field, '!=', value];
-            }
-            
-            return null;
-        }
-        
-        // Traiter les filtres
+
+        // Process the filters
         if (filtersStr && filtersStr.trim() !== '') {
             const filterArray = filtersStr.split(';');
-            
-            console.log(`SUM_BY_DOMAIN - Processing ${filterArray.length} filters from: ${filtersStr}`);
-            
+
+            debugLog(`SUM_BY_DOMAIN - Processing ${filterArray.length} filters from: ${filtersStr}`);
+
             for (const filter of filterArray) {
                 const trimmedFilter = filter.trim();
-                
-                // Debug logging for each filter
-                console.log(`SUM_BY_DOMAIN - Processing filter: "${trimmedFilter}"`);
-                
+
+                debugLog(`SUM_BY_DOMAIN - Processing filter: "${trimmedFilter}"`);
+
                 // Support for explicit format "field:operator:value"
                 if (trimmedFilter.includes(':')) {
                     const parts = trimmedFilter.split(':');
@@ -949,7 +928,7 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                         const field = parts[0].trim();
                         const operator = parts[1].trim();
                         const valueStr = parts.slice(2).join(':').trim();
-                        
+
                         // Support for "in" operator with comma-separated values
                         if (operator.toLowerCase() === 'in' && valueStr.includes(',')) {
                             const values = valueStr.split(',').map(v => v.trim());
@@ -962,34 +941,26 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                         continue; // Skip further processing for this filter
                     }
                 }
-                
-                // Fix: Handle date comparison operators correctly
+
+                // Handle comparison operators
                 if (trimmedFilter.includes('>')) {
                     const parts = trimmedFilter.split('>');
                     const field = parts[0].trim();
                     const value = parts.slice(1).join('>').trim();
-                    
-                    // Special handling for date fields
-                    const isDateField = (field.includes('date') || field.endsWith('_at') || field.endsWith('_on'));
-                    console.log(`SUM_BY_DOMAIN - Detected field "${field}" with > operator, isDateField: ${isDateField}`);
-                    
+                    debugLog(`SUM_BY_DOMAIN - Detected field "${field}" with > operator`);
                     domain.push([field, '>', value]);
                     continue;
                 }
-                
+
                 if (trimmedFilter.includes('<')) {
                     const parts = trimmedFilter.split('<');
                     const field = parts[0].trim();
                     const value = parts.slice(1).join('<').trim();
-                    
-                    // Special handling for date fields
-                    const isDateField = (field.includes('date') || field.endsWith('_at') || field.endsWith('_on'));
-                    console.log(`SUM_BY_DOMAIN - Detected field "${field}" with < operator, isDateField: ${isDateField}`);
-                    
+                    debugLog(`SUM_BY_DOMAIN - Detected field "${field}" with < operator`);
                     domain.push([field, '<', value]);
                     continue;
                 }
-                
+
                 // Legacy support for field=value format
                 else if (trimmedFilter.includes('=')) {
                     const [field, value] = trimmedFilter.split('=').map(s => s.trim());
@@ -998,19 +969,19 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                     domain.push([field, '=', parsedValue]);
                     continue;
                 }
-                
+
                 // Format with other operators
-                const domainItem = parseFilter(trimmedFilter);
+                const domainItem = parseDomainFilter(trimmedFilter);
                 if (domainItem) {
                     domain.push(domainItem);
                 }
             }
         }
-        
-        console.log("SUM_BY_DOMAIN - Final domain:", JSON.stringify(domain));
-        
+
+        debugLog("SUM_BY_DOMAIN - Final domain:", JSON.stringify(domain));
+
         try {
-            // Initialisation avec l'utilisateur courant pour établir le contexte de sécurité
+            // Initialization with the current user to set the security context
             try {
                 if (this.getters.getOdooServerData) {
                     const serverData = this.getters.getOdooServerData();
@@ -1018,81 +989,79 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                         try {
                             this.getters.getFieldValue("res.users", serverData.user.id, "name");
                         } catch (e) {
-                            // Ignorer
+                            // Ignore
                         }
                     }
                 }
             } catch (initError) {
-                console.log("Erreur d'initialisation:", initError);
+                debugLog("Initialization error:", initError);
             }
-            
-            // 1. Récupérer les IDs correspondant au domaine
-            const idsResult = this.getters.searchRecords(_model, domain, { 
-                // Pas de limite pour prendre en compte tous les enregistrements
-                // Pas de tri nécessaire pour une somme
+
+            // 1. Get the IDs matching the domain
+            const idsResult = this.getters.searchRecords(_model, domain, {
+                // No limit, to take all records into account
+                // No sorting needed for a sum
             });
-            
-            // Si données en cours de chargement
+
+            // Data still loading
             if (idsResult.requiresRefresh) {
                 return { value: 0, format: "#,##0.00" };
             }
-            
-            // Si aucun résultat
-            if (!idsResult.value || 
-                (Array.isArray(idsResult.value) && !idsResult.value.length) || 
+
+            // No result
+            if (!idsResult.value ||
+                (Array.isArray(idsResult.value) && !idsResult.value.length) ||
                 (typeof idsResult.value === 'string' && !idsResult.value.trim())) {
                 return { value: 0, format: "#,##0.00" };
             }
-            
-            // 2. Préparer la liste d'IDs
+
+            // 2. Prepare the IDs list
             let ids;
             if (typeof idsResult.value === 'string') {
                 ids = idsResult.value;
             } else if (Array.isArray(idsResult.value)) {
                 ids = idsResult.value.join(',');
             }
-            
-            // Si aucun ID valide
+
+            // No valid ID
             if (!ids || ids === '') {
                 return { value: 0, format: "#,##0.00" };
             }
-            
-            // Limiter le nombre d'IDs seulement si vraiment excessif
-            const maxIds = 2000; // Augmentation significative de la limite
+
+            // Only warn when the number of IDs is really large
+            const maxIds = 2000;
             if (ids.includes(',')) {
                 const idArray = ids.split(',');
                 if (idArray.length > maxIds) {
-                    console.log(`SUM_BY_DOMAIN: Attention - ${idArray.length} IDs trouvés, la performance peut être affectée.`);
-                    // On ne limite plus les IDs - mais on log un avertissement
-                    // ids = idArray.slice(0, maxIds).join(',');
+                    debugLog(`SUM_BY_DOMAIN: ${idArray.length} IDs found, performance may be affected.`);
                 }
             }
-            
-            // 3. Sommer les valeurs - méthode manuelle si sumRecords n'est pas disponible ou échoue
+
+            // 3. Sum the values - manual computation if sumRecords is not available or fails
             let manualCalculation = false;
-            
-            // Vérifier si sumRecords existe
+
+            // Check whether sumRecords exists
             if (!this.getters.sumRecords) {
                 manualCalculation = true;
             } else {
-                // Essayer d'utiliser sumRecords (méthode standard)
+                // Try sumRecords (standard method)
                 try {
                     const sumResult = this.getters.sumRecords(_model, _field, ids);
-                    
-                    // Si on a besoin d'un refresh, on va essayer le calcul manuel
+
+                    // Refresh needed: try the manual computation
                     if (sumResult.requiresRefresh) {
                         manualCalculation = true;
                     } else {
-                        // Si le résultat est vide ou égal à 0, vérifier si c'est un vrai 0 ou un problème
-                        if ((!sumResult.value && sumResult.value !== 0) || 
+                        // Empty or zero result: check whether it is a real 0 or a problem
+                        if ((!sumResult.value && sumResult.value !== 0) ||
                             (sumResult.value === 0 && ids.split(',').length > 5)) {
-                            // Si on a beaucoup d'IDs mais un résultat de 0, c'est suspect - essayer en manuel
+                            // Many IDs but a result of 0 is suspicious: try the manual computation
                             manualCalculation = true;
                         } else {
-                            // Sinon on retourne la valeur formatée de sumRecords
+                            // Otherwise return the formatted sumRecords value
                             return {
                                 value: sumResult.value,
-                                format: "#,##0.00", // Format nombre avec 2 décimales
+                                format: "#,##0.00", // Number format with 2 decimals
                             };
                         }
                     }
@@ -1100,37 +1069,34 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                     manualCalculation = true;
                 }
             }
-            
-            // Calcul manuel si nécessaire
+
+            // Manual computation when needed
             if (manualCalculation) {
                 let total = 0;
-                let count = 0;
-                
-                // Récupérer les IDs sous forme de tableau
+
+                // Get the IDs as an array
                 const idArray = ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
-                
-                // Calculer la somme manuellement
+
+                // Compute the sum manually
                 for (const id of idArray) {
                     try {
                         const val = this.getters.getFieldValue(_model, id, _field);
                         if (typeof val === 'number') {
                             total += val;
-                            count++;
                         } else if (typeof val === 'string' && !isNaN(parseFloat(val))) {
                             total += parseFloat(val);
-                            count++;
                         }
                     } catch (e) {
-                        // Ignorer les erreurs sur les valeurs individuelles
+                        // Ignore errors on single values
                     }
                 }
-                
+
                 return {
                     value: total,
                     format: "#,##0.00",
                 };
             }
-            
+
         } catch (error) {
             return { value: 0, format: "#,##0.00" };
         }
@@ -1148,22 +1114,21 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
     compute: function (model, filters) {
         const _model = toString(model);
         const filtersStr = toString(filters);
-        
-        // Construire le domaine à partir de la chaîne de filtres
+
+        // Build the domain from the filters string
         const domain = [];
-        
-        // Traiter les filtres
+
+        // Process the filters
         if (filtersStr && filtersStr.trim() !== '') {
             const filterArray = filtersStr.split(';');
-            
-            console.log(`COUNT_BY_DOMAIN - Processing ${filterArray.length} filters from: ${filtersStr}`);
-            
+
+            debugLog(`COUNT_BY_DOMAIN - Processing ${filterArray.length} filters from: ${filtersStr}`);
+
             for (const filter of filterArray) {
                 const trimmedFilter = filter.trim();
-                
-                // Debug logging for each filter
-                console.log(`COUNT_BY_DOMAIN - Processing filter: "${trimmedFilter}"`);
-                
+
+                debugLog(`COUNT_BY_DOMAIN - Processing filter: "${trimmedFilter}"`);
+
                 // Support for explicit format "field:operator:value"
                 if (trimmedFilter.includes(':')) {
                     const parts = trimmedFilter.split(':');
@@ -1171,7 +1136,7 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
                         const field = parts[0].trim();
                         const operator = parts[1].trim();
                         const valueStr = parts.slice(2).join(':').trim();
-                        
+
                         // Support for "in" operator with comma-separated values
                         if (operator.toLowerCase() === 'in' && valueStr.includes(',')) {
                             const values = valueStr.split(',').map(v => v.trim());
@@ -1184,34 +1149,26 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
                         continue; // Skip further processing for this filter
                     }
                 }
-                
-                // Fix: Handle date comparison operators correctly
+
+                // Handle comparison operators
                 if (trimmedFilter.includes('>')) {
                     const parts = trimmedFilter.split('>');
                     const field = parts[0].trim();
                     const value = parts.slice(1).join('>').trim();
-                    
-                    // Special handling for date fields
-                    const isDateField = (field.includes('date') || field.endsWith('_at') || field.endsWith('_on'));
-                    console.log(`COUNT_BY_DOMAIN - Detected field "${field}" with > operator, isDateField: ${isDateField}`);
-                    
+                    debugLog(`COUNT_BY_DOMAIN - Detected field "${field}" with > operator`);
                     domain.push([field, '>', value]);
                     continue;
                 }
-                
+
                 if (trimmedFilter.includes('<')) {
                     const parts = trimmedFilter.split('<');
                     const field = parts[0].trim();
                     const value = parts.slice(1).join('<').trim();
-                    
-                    // Special handling for date fields
-                    const isDateField = (field.includes('date') || field.endsWith('_at') || field.endsWith('_on'));
-                    console.log(`COUNT_BY_DOMAIN - Detected field "${field}" with < operator, isDateField: ${isDateField}`);
-                    
+                    debugLog(`COUNT_BY_DOMAIN - Detected field "${field}" with < operator`);
                     domain.push([field, '<', value]);
                     continue;
                 }
-                
+
                 // Legacy support for field=value format
                 else if (trimmedFilter.includes('=')) {
                     const [field, value] = trimmedFilter.split('=').map(s => s.trim());
@@ -1220,19 +1177,19 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
                     domain.push([field, '=', parsedValue]);
                     continue;
                 }
-                
-                // Format with other operators - réutiliser la fonction parseFilter de SUM_BY_DOMAIN
-                const domainItem = parseFilter(trimmedFilter);
+
+                // Format with other operators (same parsing as IROKOO.SUM_BY_DOMAIN)
+                const domainItem = parseDomainFilter(trimmedFilter);
                 if (domainItem) {
                     domain.push(domainItem);
                 }
             }
         }
-        
-        console.log("COUNT_BY_DOMAIN - Final domain:", JSON.stringify(domain));
-        
+
+        debugLog("COUNT_BY_DOMAIN - Final domain:", JSON.stringify(domain));
+
         try {
-            // Initialisation avec l'utilisateur courant pour établir le contexte de sécurité
+            // Initialization with the current user to set the security context
             try {
                 if (this.getters.getOdooServerData) {
                     const serverData = this.getters.getOdooServerData();
@@ -1240,50 +1197,48 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
                         try {
                             this.getters.getFieldValue("res.users", serverData.user.id, "name");
                         } catch (e) {
-                            // Ignorer
+                            // Ignore
                         }
                     }
                 }
             } catch (initError) {
-                console.log("Erreur d'initialisation:", initError);
+                debugLog("Initialization error:", initError);
             }
-            
-            // 1. Récupérer les IDs correspondant au domaine
+
+            // 1. Get the IDs matching the domain
             const idsResult = this.getters.searchRecords(_model, domain, {});
-            
-            // Si données en cours de chargement
+
+            // Data still loading
             if (idsResult.requiresRefresh) {
                 return { value: 0, format: "#,##0" };
             }
-            
-            // Si aucun résultat
-            if (!idsResult.value || 
-                (Array.isArray(idsResult.value) && !idsResult.value.length) || 
+
+            // No result
+            if (!idsResult.value ||
+                (Array.isArray(idsResult.value) && !idsResult.value.length) ||
                 (typeof idsResult.value === 'string' && !idsResult.value.trim())) {
                 return { value: 0, format: "#,##0" };
             }
-            
-            // 2. Compter les IDs
+
+            // 2. Count the IDs
             let count = 0;
             if (typeof idsResult.value === 'string') {
-                // Si c'est une chaîne, compter les virgules + 1
+                // String: number of commas + 1
                 const trimmedValue = idsResult.value.trim();
                 count = trimmedValue ? trimmedValue.split(',').length : 0;
             } else if (Array.isArray(idsResult.value)) {
-                // Si c'est un tableau, prendre sa longueur
+                // Array: its length
                 count = idsResult.value.length;
             }
-            
+
             return {
                 value: count,
-                format: "#,##0", // Format nombre entier sans décimales
+                format: "#,##0", // Integer number format
             };
-            
+
         } catch (error) {
-            console.error("COUNT_BY_DOMAIN - Error:", error);
+            debugLog("COUNT_BY_DOMAIN - Error:", error);
             return { value: 0, format: "#,##0" };
         }
     }
 });
-
-

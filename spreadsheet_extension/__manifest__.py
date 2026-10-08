@@ -3,27 +3,32 @@
     "author": "Sylvain Boutet",
     "website": "http://www.chti-tech.eu",
     "category": "Tools",
-    "version": "18.0.0.0.1",
+    "version": "18.0.0.1.0",
     "description": """
-    Module éducatif pour étendre les spreadsheets Odoo avec des formules personnalisées.
-    
-    ⚠️ ATTENTION : Module fourni à des fins éducatives uniquement.
-    Aucun support officiel n'est assuré par l'auteur.
-    
-    Fonctionnalités :
-    - Formules IROKOO.GET_FIELD pour accéder aux champs
-    - Formules IROKOO.GET_IDS pour rechercher des enregistrements  
-    - Formules IROKOO.GET_SUM pour calculer des sommes
-    - Formules IROKOO.GET_GROUPED_IDS pour les regroupements
-    
-    Voir README.md et EXAMPLES.md pour la documentation complète.
-    """,
+Educational module that extends Odoo spreadsheets with custom formulas.
+
+Warning: this module is provided for educational purposes only.
+No official support is provided by the author.
+
+Features:
+
+- IROKOO.GET_FIELD formula to access field values
+- IROKOO.GET_IDS formula to search records
+- IROKOO.GET_SUM formula to compute sums
+- IROKOO.GET_GROUPED_IDS formula for groupings
+
+See README.md and EXAMPLES.md for the complete documentation.
+""",
     "license": "LGPL-3",
     "depends": [
         "spreadsheet",
+        "spreadsheet_dashboard",
     ],
     "data": [
 
+    ],
+    "demo": [
+        "demo/spreadsheet_dashboard_demo.xml",
     ],
     'assets': {
         'spreadsheet.o_spreadsheet': [
@@ -32,6 +37,12 @@
                 'spreadsheet/static/src/o_spreadsheet/o_spreadsheet.js',
                 'spreadsheet_extension/static/src/js/**/*',
             ),
+        ],
+        'web.assets_unit_tests': [
+            'spreadsheet_extension/static/tests/unit/**/*',
+        ],
+        'web.assets_tests': [
+            'spreadsheet_extension/static/tests/tours/**/*',
         ],
     },
     'auto_install': False,

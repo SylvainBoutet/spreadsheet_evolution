@@ -1,0 +1,69 @@
+{
+    "version": 21,
+    "sheets": [
+        {
+            "id": "sheet1",
+            "name": "IROKOO formulas",
+            "colNumber": 26,
+            "rowNumber": 100,
+            "cols": {
+                "0": {
+                    "size": 560
+                },
+                "1": {
+                    "size": 220
+                }
+            },
+            "cells": {
+                "A1": {
+                    "content": "Formula"
+                },
+                "B1": {
+                    "content": "Result"
+                },
+                "A2": {
+                    "content": "Name of the country with code FR (IROKOO.GET_FIELD + IROKOO.GET_IDS)"
+                },
+                "B2": {
+                    "content": "=IROKOO.GET_FIELD(\"res.country\", IROKOO.GET_IDS(\"res.country\", \"id\", \"asc\", 1, \"code=FR\"), \"name\")"
+                },
+                "A3": {
+                    "content": "IDs of the first 5 countries whose name contains 'land' (IROKOO.GET_IDS)"
+                },
+                "B3": {
+                    "content": "=IROKOO.GET_IDS(\"res.country\", \"name\", \"asc\", 5, \"name~land\")"
+                },
+                "A4": {
+                    "content": "Sum of the phone codes of these countries (IROKOO.GET_SUM)"
+                },
+                "B4": {
+                    "content": "=IROKOO.GET_SUM(\"res.country\", \"phone_code\", B3)"
+                },
+                "A5": {
+                    "content": "Top 3 currencies of the countries with a phone code above 300 (IROKOO.GET_GROUPED_IDS)"
+                },
+                "B5": {
+                    "content": "=IROKOO.GET_GROUPED_IDS(\"res.country\", \"currency_id\", \"phone_code\", \"count\", \"phone_code>300\", 3)"
+                },
+                "A6": {
+                    "content": "Sum of the phone codes of FR, BE and DE (IROKOO.SUM_BY_DOMAIN)"
+                },
+                "B6": {
+                    "content": "=IROKOO.SUM_BY_DOMAIN(\"res.country\", \"phone_code\", \"code:in:FR,BE,DE\")"
+                },
+                "A7": {
+                    "content": "Number of countries whose name contains 'land' (IROKOO.COUNT_BY_DOMAIN)"
+                },
+                "B7": {
+                    "content": "=IROKOO.COUNT_BY_DOMAIN(\"res.country\", \"name~land\")"
+                },
+                "A8": {
+                    "content": "Name of the main company (IROKOO.GET_FIELD)"
+                },
+                "B8": {
+                    "content": "=IROKOO.GET_FIELD(\"res.company\", 1, \"name\")"
+                }
+            }
+        }
+    ]
+}

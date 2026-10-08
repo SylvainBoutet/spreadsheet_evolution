@@ -4,6 +4,7 @@
 import { EvaluationError } from "@odoo/o-spreadsheet";
 import { OdooUIPlugin } from "@spreadsheet/plugins";
 import { _t } from "@web/core/l10n/translation";
+import { debugLog } from "../utils";
 
 export class GetFieldPlugin extends OdooUIPlugin {
     static getters = /** @type {const} */ ([
@@ -17,37 +18,35 @@ export class GetFieldPlugin extends OdooUIPlugin {
         this._cache = new Map();
         this._refreshTimerId = null;
         this.config = config;
-        
+
         if (config?.custom?.model) {
-            // S'enregistrer pour les événements qui pourraient nécessiter un rafraîchissement
+            // Listen to the events that may require a refresh
             config.custom.model.addEventListener("user-selection-changed", this._onSelectionChanged.bind(this));
         }
     }
-    
+
     /**
-     * Appelé lorsque la sélection change dans la feuille
-     * Peut aider à déclencher des rafraîchissements
+     * Called when the selection changes in the sheet, may trigger a refresh
      */
     _onSelectionChanged() {
-        // Pour GetFieldPlugin, nous pouvons simplement programmer un rafraîchissement périodique
-        // pour s'assurer que les formules sont recalculées régulièrement
+        // Schedule a refresh so that the formulas are recomputed regularly
         if (!this._refreshTimerId) {
             this._scheduleRefresh();
         }
     }
 
     /**
-     * Planifie un refresh différé pour éviter trop d'appels consécutifs
+     * Schedule a delayed refresh to avoid too many consecutive calls
      */
     _scheduleRefresh() {
         if (this._refreshTimerId) {
             clearTimeout(this._refreshTimerId);
         }
-        
+
         this._refreshTimerId = setTimeout(() => {
             if (this.config?.custom?.model) {
                 this.config.custom.model.dispatch("EVALUATE_CELLS");
-                console.log("GetFieldPlugin: Scheduled refresh triggered");
+                debugLog("GetFieldPlugin: Scheduled refresh triggered");
             }
             this._refreshTimerId = null;
         }, 100);
@@ -70,76 +69,70 @@ export class GetFieldPlugin extends OdooUIPlugin {
      * @returns {any}
      */
     getFieldValue(modelName, recordId, fieldName) {
-        // Créer une clé de cache unique
+        // Unique cache key
         const cacheKey = `${modelName}-${recordId}-${fieldName}`;
-        
-        // Vérifier si la valeur est en cache
+
+        // Return the cached value if any
         if (this._cache.has(cacheKey)) {
             return this._cache.get(cacheKey);
         }
-        
-        try {
-            // batch.get est synchrone, pas une promesse
-            const result = this.serverData.batch.get(
-                modelName,
-                "read",
-                recordId,
-                [fieldName]
-            );
 
-            if (!result) {
-                console.warn("Aucun résultat trouvé");
-                throw new EvaluationError(_t("Record not found"));
-            }
-            
-            let value;
-            
-            // Si le résultat est un objet avec la propriété fieldName
-            if (result[fieldName] !== undefined) {
-                value = result[fieldName];
-            }
-            // Si le résultat est un tableau
-            else if (Array.isArray(result) && result.length > 0 && result[0][fieldName] !== undefined) {
-                value = result[0][fieldName];
-            }
-            else {
-                throw new EvaluationError(_t("Field not found"));
-            }
-            
-            // Gérer les champs relationnels
-            if (value && typeof value === 'object' && Array.isArray(value)) {
-                // Format many2one: [id, display_name] - on retourne uniquement l'id
-                value = value[0];
-            }
-            
-            // Mettre en cache
-            this._cache.set(cacheKey, value);
-            
-            // Programmer un refresh pour s'assurer que d'autres plugins ont leurs données
-            if (this._refreshTimerId === null) {
-                this._scheduleRefresh();
-            }
-            
-            return value;
-            
-        } catch (error) {
-            throw error;
+        // batch.get is synchronous: it throws a loading error until the data is fetched
+        // @ts-ignore
+        const result = this.serverData.batch.get(
+            modelName,
+            "read",
+            recordId,
+            [fieldName]
+        );
+
+        if (!result) {
+            throw new EvaluationError(_t("Record not found"));
         }
+
+        let value;
+
+        // The result is an object with the fieldName property
+        if (result[fieldName] !== undefined) {
+            value = result[fieldName];
+        }
+        // The result is an array
+        else if (Array.isArray(result) && result.length > 0 && result[0][fieldName] !== undefined) {
+            value = result[0][fieldName];
+        }
+        else {
+            throw new EvaluationError(_t("Field not found"));
+        }
+
+        // Relational fields
+        if (value && typeof value === 'object' && Array.isArray(value)) {
+            // many2one format: [id, display_name], only the id is returned
+            value = value[0];
+        }
+
+        // Store in the cache
+        this._cache.set(cacheKey, value);
+
+        // Schedule a refresh so that the other plugins get their data
+        if (this._refreshTimerId === null) {
+            this._scheduleRefresh();
+        }
+
+        return value;
     }
-    
+
     /**
      * @override
      */
     handle(cmd) {
         switch (cmd.type) {
             case "EVALUATE_CELLS":
-                // Pour GetFieldPlugin, nous n'avons plus de requêtes en attente
-                // donc on ne bloque jamais l'évaluation
+                // No pending request in this plugin: never block the evaluation
                 return false;
         }
         return false;
     }
-    
+
     /**
      * @override
      */
@@ -147,11 +140,11 @@ export class GetFieldPlugin extends OdooUIPlugin {
         if (this._refreshTimerId) {
             clearTimeout(this._refreshTimerId);
         }
-        
+
         if (this.config?.custom?.model) {
             this.config.custom.model.removeEventListener("user-selection-changed", this._onSelectionChanged);
         }
-        
+
         super.destroy();
     }
 }

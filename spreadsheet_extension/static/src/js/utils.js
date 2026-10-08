@@ -2,6 +2,21 @@
 
 import { tokenize } from "@odoo/o-spreadsheet";
 
+// Debug flag: set to true to log the formulas and plugins activity in the browser console
+export const DEBUG_FORMULAS = false;
+
+// Value displayed by IROKOO.GET_IDS and IROKOO.GET_GROUPED_IDS when nothing matches
+export const NO_RESULTS = "No results found";
+
+/**
+ * Log in the browser console only when DEBUG_FORMULAS is enabled.
+ */
+export function debugLog(...args) {
+    if (DEBUG_FORMULAS) {
+        console.log(...args);
+    }
+}
+
 export function getFirstGetFieldFunction(tokens) {
     return getGetFieldFunctions(tokens)[0];
 }
