@@ -55,7 +55,7 @@ async function waitForFormulasData(model) {
  * Evaluate a formula in A1 and return its result, with the error message if any.
  */
 async function evaluateFormula(formula) {
-    const model = await createModelWithDataSource();
+    const { model } = await createModelWithDataSource();
     setCellContent(model, "A1", formula);
     await waitForFormulasData(model);
     const cell = getEvaluatedCell(model, "A1");
@@ -101,7 +101,7 @@ test("IROKOO.GET_SUM sums a field for a list of ids", async () => {
 });
 
 test("IROKOO.GET_SUM sums a field for the ids returned by IROKOO.GET_IDS", async () => {
-    const model = await createModelWithDataSource();
+    const { model } = await createModelWithDataSource();
     setCellContent(model, "A1", '=IROKOO.GET_IDS("irk.partner", "id", "asc", 0, "product_id=41")');
     setCellContent(model, "A2", '=IROKOO.GET_SUM("irk.partner", "foo", A1)');
     await waitForFormulasData(model);

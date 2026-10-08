@@ -3,6 +3,7 @@
 
 import { EvaluationError } from "@odoo/o-spreadsheet";
 import { OdooUIPlugin } from "@spreadsheet/plugins";
+import { LoadingDataError } from "@spreadsheet/o_spreadsheet/errors";
 import { _t } from "@web/core/l10n/translation";
 import { debugLog } from "../utils";
 
@@ -16,6 +17,10 @@ export class GetFieldPlugin extends OdooUIPlugin {
         /** @type {import("@spreadsheet/data_sources/server_data").ServerData} */
         this._serverData = config.custom.odooDataProvider?.serverData;
         this._cache = new Map();
+        // Fields waiting to be read, by model: { ids: Set, fields: Set }
+        this._pendingReads = {};
+        this._pendingKeys = new Set();
+        this._readScheduled = false;
         this._refreshTimerId = null;
         this.config = config;
 
@@ -72,53 +77,101 @@ export class GetFieldPlugin extends OdooUIPlugin {
         // Unique cache key
         const cacheKey = `${modelName}-${recordId}-${fieldName}`;
 
-        // Return the cached value if any
+        // Return the cached value (or error) if any
         if (this._cache.has(cacheKey)) {
-            return this._cache.get(cacheKey);
+            const cached = this._cache.get(cacheKey);
+            if (cached instanceof EvaluationError) {
+                throw cached;
+            }
+            return cached;
         }
 
-        // batch.get is synchronous: it throws a loading error until the data is fetched
+        // Only the requested fields are read: reading all the fields of a record
+        // fails for the users who cannot access some of them
+        if (!this._pendingKeys.has(cacheKey)) {
+            this._pendingKeys.add(cacheKey);
+            const pending = (this._pendingReads[modelName] ||= { ids: new Set(), fields: new Set() });
+            pending.ids.add(recordId);
+            pending.fields.add(fieldName);
+            this._scheduleRead();
+        }
+        throw new LoadingDataError();
+    }
+
+    /**
+     * Read the pending fields in one request per model, once the current
+     * evaluation is done.
+     */
+    _scheduleRead() {
+        if (this._readScheduled) {
+            return;
+        }
+        this._readScheduled = true;
+        queueMicrotask(() => {
+            this._readScheduled = false;
+            const pendingReads = this._pendingReads;
+            this._pendingReads = {};
+            for (const [modelName, { ids, fields }] of Object.entries(pendingReads)) {
+                const promise = this._read(modelName, [...ids], [...fields]);
+                // Let the data provider re-evaluate the spreadsheet once the values are received
+                // @ts-ignore
+                this.serverData.startLoadingCallback(promise);
+            }
+        });
+    }
+
+    /**
+     * Read the fields of the records and store the values (or the errors) in the cache.
+     * When the request fails, each field then each record is read separately to isolate the error.
+     */
+    async _read(modelName, ids, fieldNames) {
         // @ts-ignore
-        const result = this.serverData.batch.get(
-            modelName,
-            "read",
-            recordId,
-            [fieldName]
-        );
-
-        if (!result) {
-            throw new EvaluationError(_t("Record not found"));
+        const orm = this.serverData.orm;
+        try {
+            const records = await orm.call(modelName, "read", [ids, fieldNames]);
+            this._storeRecords(modelName, ids, fieldNames, records);
+        } catch (error) {
+            if (fieldNames.length > 1) {
+                await Promise.all(fieldNames.map((fieldName) => this._read(modelName, ids, [fieldName])));
+                return;
+            }
+            if (ids.length > 1) {
+                await Promise.all(ids.map((id) => this._read(modelName, [id], fieldNames)));
+                return;
+            }
+            const message = error.data?.message || error.message;
+            for (const id of ids) {
+                this._storeValue(modelName, id, fieldNames[0], new EvaluationError(message));
+            }
         }
+    }
 
-        let value;
+    _storeRecords(modelName, ids, fieldNames, records) {
+        const recordsById = new Map(records.map((record) => [record.id, record]));
+        for (const id of ids) {
+            const record = recordsById.get(id);
+            for (const fieldName of fieldNames) {
+                if (!record) {
+                    this._storeValue(modelName, id, fieldName, new EvaluationError(_t("Record not found")));
+                } else if (record[fieldName] === undefined) {
+                    this._storeValue(modelName, id, fieldName, new EvaluationError(_t("Field not found")));
+                } else {
+                    let value = record[fieldName];
+                    // Relational fields
+                    if (value && typeof value === 'object' && Array.isArray(value)) {
+                        // many2one format: [id, display_name], only the id is returned
+                        value = value[0];
+                    }
+                    this._storeValue(modelName, id, fieldName, value);
+                }
+            }
+        }
+    }
 
-        // The result is an object with the fieldName property
-        if (result[fieldName] !== undefined) {
-            value = result[fieldName];
-        }
-        // The result is an array
-        else if (Array.isArray(result) && result.length > 0 && result[0][fieldName] !== undefined) {
-            value = result[0][fieldName];
-        }
-        else {
-            throw new EvaluationError(_t("Field not found"));
-        }
-
-        // Relational fields
-        if (value && typeof value === 'object' && Array.isArray(value)) {
-            // many2one format: [id, display_name], only the id is returned
-            value = value[0];
-        }
-
-        // Store in the cache
+    _storeValue(modelName, recordId, fieldName, value) {
+        const cacheKey = `${modelName}-${recordId}-${fieldName}`;
         this._cache.set(cacheKey, value);
-
-        // Schedule a refresh so that the other plugins get their data
-        if (this._refreshTimerId === null) {
-            this._scheduleRefresh();
-        }
-
-        return value;
+        this._pendingKeys.delete(cacheKey);
     }
 
     /**
