@@ -8,7 +8,7 @@
             "rowNumber": 100,
             "cols": {
                 "0": {
-                    "size": 560
+                    "size": 720
                 },
                 "1": {
                     "size": 220
@@ -63,7 +63,14 @@
                 "B8": {
                     "content": "=IROKOO.GET_FIELD(\"res.company\", 1, \"name\")"
                 }
+            },
+            "formats": {
+                "B4": 1,
+                "B6": 1
             }
         }
-    ]
+    ],
+    "formats": {
+        "1": "#,##0"
+    }
 }

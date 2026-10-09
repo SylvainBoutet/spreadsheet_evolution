@@ -3,7 +3,7 @@
     "author": "Sylvain Boutet",
     "website": "http://www.chti-tech.eu",
     "category": "Tools",
-    "version": "18.0.0.1.1",
+    "version": "18.0.0.1.2",
     "description": """
 Educational module that extends Odoo spreadsheets with custom formulas.
 
