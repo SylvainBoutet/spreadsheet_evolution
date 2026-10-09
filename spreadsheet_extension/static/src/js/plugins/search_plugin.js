@@ -1,10 +1,10 @@
 /** @odoo-module */
 // @ts-check
 
-import { OdooUIPlugin } from "@spreadsheet/plugins";
+import { OdooEvaluationPlugin } from "@spreadsheet/plugins";
 import { debugLog } from "../utils";
 
-export class SearchPlugin extends OdooUIPlugin {
+export class SearchPlugin extends OdooEvaluationPlugin {
     static getters = /** @type {const} */ ([
         "searchRecords",
     ]);
@@ -111,7 +111,7 @@ export class SearchPlugin extends OdooUIPlugin {
         debugLog("searchRecords called with:", { modelName, domain, options });
 
         // Get the active cell
-        this._currentCell = this.getters.getActiveCell();
+        this._currentCell = this.getters.getActiveCell?.();
 
         if (!domain) {
             return { value: "", requiresRefresh: false };
@@ -213,7 +213,7 @@ export class SearchPlugin extends OdooUIPlugin {
             this.config.custom.model.off('formula_changed', this._onFormulaChanged);
             this.config.custom.model.removeEventListener("user-selection-changed", this._onSelectionChanged);
         }
-        super.destroy();
+        super.destroy?.();
     }
 
     async compute(formula) {

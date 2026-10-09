@@ -1,10 +1,10 @@
 /** @odoo-module */
 // @ts-check
 
-import { OdooUIPlugin } from "@spreadsheet/plugins";
+import { OdooEvaluationPlugin } from "@spreadsheet/plugins";
 import { debugLog } from "../utils";
 
-export class SumPlugin extends OdooUIPlugin {
+export class SumPlugin extends OdooEvaluationPlugin {
     static getters = /** @type {const} */ ([
         "sumRecords",
     ]);
@@ -159,6 +159,6 @@ export class SumPlugin extends OdooUIPlugin {
             this.config.custom.model.removeEventListener("user-selection-changed", this._onSelectionChanged);
         }
 
-        super.destroy();
+        super.destroy?.();
     }
 }

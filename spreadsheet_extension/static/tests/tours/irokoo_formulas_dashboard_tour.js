@@ -6,10 +6,11 @@ import { registry } from "@web/core/registry";
  * Return the spreadsheet model of the dashboard displayed by the dashboard action.
  */
 function getDisplayedDashboardModel() {
-    const stack = [odoo.__WOWL_DEBUG__.root.__owl__];
+    const root = odoo.__WOWL_DEBUG__.root;
+    const stack = [root.__owl__ || root.node || root];
     while (stack.length) {
         const node = stack.pop();
-        const component = node.component;
+        const component = node?.component;
         if (component?.loader) {
             const dashboard = component.loader.getActiveDashboard
                 ? component.loader.getActiveDashboard()
@@ -18,7 +19,7 @@ function getDisplayedDashboardModel() {
                 return dashboard.model;
             }
         }
-        stack.push(...Object.values(node.children || {}));
+        stack.push(...Object.values(node?.children || {}));
     }
     return undefined;
 }

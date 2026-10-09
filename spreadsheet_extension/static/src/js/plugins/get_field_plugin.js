@@ -2,12 +2,12 @@
 // @ts-check
 
 import { EvaluationError } from "@odoo/o-spreadsheet";
-import { OdooUIPlugin } from "@spreadsheet/plugins";
+import { OdooEvaluationPlugin } from "@spreadsheet/plugins";
 import { LoadingDataError } from "@spreadsheet/o_spreadsheet/errors";
 import { _t } from "@web/core/l10n/translation";
 import { debugLog } from "../utils";
 
-export class GetFieldPlugin extends OdooUIPlugin {
+export class GetFieldPlugin extends OdooEvaluationPlugin {
     static getters = /** @type {const} */ ([
         "getFieldValue",
     ]);
@@ -198,6 +198,6 @@ export class GetFieldPlugin extends OdooUIPlugin {
             this.config.custom.model.removeEventListener("user-selection-changed", this._onSelectionChanged);
         }
 
-        super.destroy();
+        super.destroy?.();
     }
 }

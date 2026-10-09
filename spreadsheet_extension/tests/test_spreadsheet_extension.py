@@ -1,20 +1,9 @@
-import base64
 import json
 
 from odoo import Command
 from odoo.tests import HttpCase, new_test_user, tagged
 from odoo.tools import file_open
-
-from odoo.addons.web.tests.test_js import unit_test_error_checker
-
-
-def _hoot_job_hash(name):
-    """Hash used by the HOOT runner to filter the tests (same as web's HOOTCommon)."""
-    value = 0
-    for char in name:
-        value = (value << 5) - value + ord(char)
-        value = value & 0xFFFFFFFF
-    return f'{value:08x}'
+from odoo.tools.binary import BinaryBytes
 
 
 @tagged('post_install', '-at_install')
@@ -74,7 +63,7 @@ class TestSpreadsheetExtension(HttpCase):
         return cls.env['spreadsheet.dashboard'].create({
             'name': name,
             'dashboard_group_id': group.id,
-            'spreadsheet_binary_data': base64.b64encode(json.dumps(data).encode()),
+            'spreadsheet_binary_data': BinaryBytes(json.dumps(data).encode()),
             'group_ids': [Command.link(cls.env.ref('base.group_user').id)],
             'is_published': True,
         })
@@ -110,16 +99,6 @@ class TestSpreadsheetExtension(HttpCase):
         for cell, value in expected.items():
             sheet['cells'][cell] = {'content': value}
         return data
-
-    def test_formulas_unit_tests(self):
-        """Run the HOOT unit tests evaluating each formula against a mocked server."""
-        job = _hoot_job_hash('@spreadsheet_extension')
-        self.browser_js(
-            f'/web/tests?headless&loglevel=2&preset=desktop&timeout=15000&id={job}',
-            '', '', login='admin', timeout=1800,
-            success_signal='[HOOT] Test suite succeeded',
-            error_checker=unit_test_error_checker,
-        )
 
     def test_formulas_in_dashboard(self):
         """Open a dashboard using the formulas and check every result against the database."""

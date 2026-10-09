@@ -5,8 +5,8 @@ import { GetFieldPlugin } from "./plugins/get_field_plugin";
 import { SearchPlugin } from "./plugins/search_plugin";
 import { SumPlugin } from "./plugins/sum_plugin";
 
-const { featurePluginRegistry } = spreadsheet.registries;
+const { evaluationPluginRegistry } = spreadsheet.registries;
 
-featurePluginRegistry.add("odooGetField", GetFieldPlugin);
-featurePluginRegistry.add("odooSearch", SearchPlugin);
-featurePluginRegistry.add("odooSum", SumPlugin);
+evaluationPluginRegistry.add("odooGetField", GetFieldPlugin);
+evaluationPluginRegistry.add("odooSearch", SearchPlugin);
+evaluationPluginRegistry.add("odooSum", SumPlugin);
