@@ -24,7 +24,7 @@ function getDisplayedDashboardModel() {
 }
 
 /**
- * Column B holds the IROKOO formulas, column C the expected results.
+ * Column B holds the IROKOO formulas, column C the expected results (same format).
  * Return the rows whose result differs from the expected one.
  */
 function getMismatches(model) {
@@ -36,9 +36,10 @@ function getMismatches(model) {
         }
         const result = model.getters.getEvaluatedCell({ sheetId, col: 1, row });
         const expected = model.getters.getEvaluatedCell({ sheetId, col: 2, row });
-        if (result.type === "error" || String(result.value) !== String(expected.value)) {
+        // Compare the values as displayed, with their format
+        if (result.type === "error" || result.formattedValue !== expected.formattedValue) {
             mismatches.push(
-                `B${row + 1}: got "${result.value}"${result.message ? ` (${result.message})` : ""}, expected "${expected.value}"`
+                `B${row + 1}: got "${result.formattedValue}"${result.message ? ` (${result.message})` : ""}, expected "${expected.formattedValue}"`
             );
         }
     }
