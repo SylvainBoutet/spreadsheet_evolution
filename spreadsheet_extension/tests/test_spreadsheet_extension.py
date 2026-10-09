@@ -96,6 +96,8 @@ class TestSpreadsheetExtension(HttpCase):
         }
         sheet = data['sheets'][0]
         sheet['name'] = 'IROKOO formulas examples check'
+        # The expected values get the same integer format as the results
+        sheet['formats'].update({'C4': 1, 'C6': 1})
         for cell, value in expected.items():
             sheet['cells'][cell] = {'content': value}
         return data
