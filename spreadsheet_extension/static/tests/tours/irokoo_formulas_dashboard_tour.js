@@ -39,7 +39,7 @@ function getMismatches(model) {
         // Compare the values as displayed, with their format
         if (result.type === "error" || result.formattedValue !== expected.formattedValue) {
             mismatches.push(
-                `B${row + 1}: got "${result.formattedValue}"${result.message ? ` (${result.message})` : ""}, expected "${expected.formattedValue}"`
+                `B${row + 1}: got "${result.formattedValue}"${result.error?.message ? ` (${result.error.message})` : ""}, expected "${expected.formattedValue}"`
             );
         }
     }
@@ -60,10 +60,12 @@ function checkDashboardSteps(dashboardName) {
         {
             content: "The dashboard is selected",
             trigger: `.o_search_panel_category_value.active[data-name="${dashboardName}"]`,
+            isCheck: true,
         },
         {
             content: "The dashboard grid is rendered",
             trigger: ".o_spreadsheet_dashboard_action canvas",
+            isCheck: true,
         },
         {
             content: "Every IROKOO formula displays the expected result",
@@ -87,7 +89,8 @@ function checkDashboardSteps(dashboardName) {
 }
 
 registry.category("web_tour.tours").add("spreadsheet_extension_dashboard_tour", {
-    url: "/odoo/dashboards",
+    test: true,
+    url: "/web#action=spreadsheet_dashboard.ir_actions_dashboard_action",
     steps: () => [
         ...checkDashboardSteps("IROKOO formulas test"),
         ...checkDashboardSteps("IROKOO formulas examples check"),

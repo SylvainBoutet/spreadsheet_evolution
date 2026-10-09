@@ -1,18 +1,18 @@
 /** @odoo-module */
 // @ts-check
 
-import { OdooUIPlugin } from "@spreadsheet/plugins";
-import { debugLog } from "../utils";
+import { UIPlugin } from "@odoo/o-spreadsheet";
+import { debugLog, getServerData } from "../utils";
 
-export class SearchPlugin extends OdooUIPlugin {
+export class SearchPlugin extends UIPlugin {
     static getters = /** @type {const} */ ([
         "searchRecords",
     ]);
 
     constructor(config) {
         super(config);
-        /** @type {import("@spreadsheet/data_sources/server_data").ServerData} */
-        this._serverData = config.custom.odooDataProvider?.serverData;
+        /** @type {ReturnType<typeof getServerData>} */
+        this._serverData = getServerData(config);
         this._cache = {};
         this._promises = {};
         this._currentCell = null;
@@ -94,7 +94,7 @@ export class SearchPlugin extends OdooUIPlugin {
     get serverData() {
         if (!this._serverData) {
             throw new Error(
-                "'serverData' is not defined, please make sure a 'OdooDataProvider' instance is provided to the model."
+                "'serverData' is not defined, please make sure a 'DataSources' instance and the env are provided to the model."
             );
         }
         return this._serverData;

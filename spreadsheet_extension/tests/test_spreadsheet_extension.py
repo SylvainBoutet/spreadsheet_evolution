@@ -5,16 +5,10 @@ from odoo import Command
 from odoo.tests import HttpCase, new_test_user, tagged
 from odoo.tools import file_open
 
-from odoo.addons.web.tests.test_js import unit_test_error_checker
+from odoo.addons.web.tests.test_js import qunit_error_checker
 
-
-def _hoot_job_hash(name):
-    """Hash used by the HOOT runner to filter the tests (same as web's HOOTCommon)."""
-    value = 0
-    for char in name:
-        value = (value << 5) - value + ord(char)
-        value = value & 0xFFFFFFFF
-    return f'{value:08x}'
+# Name of the QUnit module of static/tests/unit/irokoo_formulas.test.js
+QUNIT_MODULE = 'spreadsheet_extension'
 
 
 @tagged('post_install', '-at_install')
@@ -53,7 +47,7 @@ class TestSpreadsheetExtension(HttpCase):
             cells[f'B{index}'] = {'content': formula}
             cells[f'C{index}'] = {'content': expected}
         data = {
-            'version': 21,
+            'version': 12,
             'sheets': [{
                 'id': 'sheet1',
                 'name': 'IROKOO formulas test',
@@ -76,7 +70,6 @@ class TestSpreadsheetExtension(HttpCase):
             'dashboard_group_id': group.id,
             'spreadsheet_binary_data': base64.b64encode(json.dumps(data).encode()),
             'group_ids': [Command.link(cls.env.ref('base.group_user').id)],
-            'is_published': True,
         })
 
     @classmethod
@@ -107,22 +100,21 @@ class TestSpreadsheetExtension(HttpCase):
         }
         sheet = data['sheets'][0]
         sheet['name'] = 'IROKOO formulas examples check'
-        # The expected values get the same integer format as the results
-        sheet['formats'].update({'C4': 1, 'C6': 1})
         for cell, value in expected.items():
             sheet['cells'][cell] = {'content': value}
+        # The expected values get the same integer format as the results
+        for cell in ('C4', 'C6'):
+            sheet['cells'][cell]['format'] = 1
         return data
 
     def test_formulas_unit_tests(self):
-        """Run the HOOT unit tests evaluating each formula against a mocked server."""
-        job = _hoot_job_hash('@spreadsheet_extension')
+        """Run the QUnit tests evaluating each formula against a mocked server."""
         self.browser_js(
-            f'/web/tests?headless&loglevel=2&preset=desktop&timeout=15000&id={job}',
+            f'/web/tests?mod=web&filter={QUNIT_MODULE}',
             '', '', login='admin', timeout=1800,
-            success_signal='[HOOT] Test suite succeeded',
-            error_checker=unit_test_error_checker,
+            error_checker=qunit_error_checker,
         )
 
     def test_formulas_in_dashboard(self):
         """Open a dashboard using the formulas and check every result against the database."""
-        self.start_tour('/odoo/dashboards', 'spreadsheet_extension_dashboard_tour', login=self.user.login)
+        self.start_tour('/web#action=spreadsheet_dashboard.ir_actions_dashboard_action', 'spreadsheet_extension_dashboard_tour', login=self.user.login)

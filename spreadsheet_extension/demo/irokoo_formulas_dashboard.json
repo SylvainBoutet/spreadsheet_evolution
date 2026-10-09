@@ -1,5 +1,5 @@
 {
-    "version": 21,
+    "version": 12,
     "sheets": [
         {
             "id": "sheet1",
@@ -37,7 +37,8 @@
                     "content": "Sum of the phone codes of these countries (IROKOO.GET_SUM)"
                 },
                 "B4": {
-                    "content": "=IROKOO.GET_SUM(\"res.country\", \"phone_code\", B3)"
+                    "content": "=IROKOO.GET_SUM(\"res.country\", \"phone_code\", B3)",
+                    "format": 1
                 },
                 "A5": {
                     "content": "Top 3 currencies of the countries with a phone code above 300 (IROKOO.GET_GROUPED_IDS)"
@@ -49,7 +50,8 @@
                     "content": "Sum of the phone codes of FR, BE and DE (IROKOO.SUM_BY_DOMAIN)"
                 },
                 "B6": {
-                    "content": "=IROKOO.SUM_BY_DOMAIN(\"res.country\", \"phone_code\", \"code:in:FR,BE,DE\")"
+                    "content": "=IROKOO.SUM_BY_DOMAIN(\"res.country\", \"phone_code\", \"code:in:FR,BE,DE\")",
+                    "format": 1
                 },
                 "A7": {
                     "content": "Number of countries whose name contains 'land' (IROKOO.COUNT_BY_DOMAIN)"
@@ -63,10 +65,6 @@
                 "B8": {
                     "content": "=IROKOO.GET_FIELD(\"res.company\", 1, \"name\")"
                 }
-            },
-            "formats": {
-                "B4": 1,
-                "B6": 1
             }
         }
     ],

@@ -12,7 +12,6 @@
         <field name="dashboard_group_id" ref="spreadsheet_dashboard_group_irokoo"/>
         <field name="group_ids" eval="[Command.link(ref('base.group_user'))]"/>
         <field name="sequence">10</field>
-        <field name="is_published">True</field>
     </record>
 
 </odoo>

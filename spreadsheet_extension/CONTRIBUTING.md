@@ -43,7 +43,7 @@ Ce module a pour vocation d'être un **exemple éducatif** montrant comment éte
 - Ajoutez de la documentation pour toute nouvelle fonctionnalité
 
 ### 3. Tests
-- Testez votre code sur une instance Odoo 18.0
+- Testez votre code sur une instance Odoo 17.0
 - Vérifiez que les exemples existants fonctionnent toujours
 - Ajoutez des exemples d'usage dans EXAMPLES.md
 

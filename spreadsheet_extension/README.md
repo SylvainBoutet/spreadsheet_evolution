@@ -197,7 +197,7 @@ Le système gère automatiquement :
 - **Logs de debug** peuvent contenir des informations sensibles
 
 ### Compatibilité
-- Testé sur Odoo 18.0
+- Testé sur Odoo 17.0
 - Dépend du module `spreadsheet` standard
 - Peut nécessiter des adaptations pour d'autres versions
 

@@ -9,6 +9,17 @@ const { functionRegistry } = spreadsheet.registries;
 const { arg, toString, toNumber } = spreadsheet.helpers;
 
 /**
+ * Odoo 17: the functions returning a value and its format are declared with
+ * computeValueAndFormat, whose arguments are {value, format} objects.
+ * The wrapped function receives the values only.
+ */
+function withArgValues(compute) {
+    return function (...args) {
+        return compute.apply(this, args.map((argument) => argument?.value));
+    };
+}
+
+/**
  * Parse a single filter of IROKOO.SUM_BY_DOMAIN and IROKOO.COUNT_BY_DOMAIN
  * into a domain condition (numeric values are converted to numbers).
  *
@@ -129,13 +140,13 @@ functionRegistry.add("IROKOO.GET_FIELD", {
     ],
     category: "Odoo",
     returns: ["STRING"],
-    compute: function (model, id, field) {
+    computeValueAndFormat: withArgValues(function (model, id, field) {
         const _model = toString(model);
         const _id = toNumber(id, this.locale);
         const _field = toString(field);
 
         if (!_model || !_id || !_field) {
-            throw new EvaluationError(_t("All parameters are required"));
+            throw new EvaluationError("#ERROR", _t("All parameters are required"));
         }
 
         // Safe initialization that works for any user
@@ -181,11 +192,13 @@ functionRegistry.add("IROKOO.GET_FIELD", {
             // Ignore errors
         }
 
+        const value = this.getters.getFieldValue(_model, _id, _field);
+        // Odoo 17 does not apply the text format "@" to numbers: give the number as text
         return {
-            value: this.getters.getFieldValue(_model, _id, _field),
+            value: typeof value === "number" ? String(value) : value,
             format: "@",
         };
-    },
+    }),
 });
 
 functionRegistry.add("IROKOO.GET_IDS", {
@@ -199,7 +212,7 @@ functionRegistry.add("IROKOO.GET_IDS", {
     ],
     category: "Odoo",
     returns: ["STRING"],
-    compute: function (model, order, direction, limit, filters) {
+    computeValueAndFormat: withArgValues(function (model, order, direction, limit, filters) {
         // Convert the arguments
         const _model = toString(model);
         const orderField = toString(order);
@@ -355,7 +368,7 @@ functionRegistry.add("IROKOO.GET_IDS", {
                     const testResult = this.getters.searchRecords(_model, domain, { limit: 1 });
                     if (testResult.value) {
                         // Results without sorting: the sort field is the problem
-                        throw new EvaluationError(_t("Unable to sort by field '") + orderField + _t("'. It might be a computed field or not exist on the model. Please use a different field for sorting or try IROKOO.GET_GROUPED_IDS for aggregations."));
+                        throw new EvaluationError("#ERROR", _t("Unable to sort by field '") + orderField + _t("'. It might be a computed field or not exist on the model. Please use a different field for sorting or try IROKOO.GET_GROUPED_IDS for aggregations."));
                     }
                 }
 
@@ -374,11 +387,11 @@ functionRegistry.add("IROKOO.GET_IDS", {
         } catch (error) {
             // Errors coming from elsewhere (API, etc.) are converted into EvaluationError
             if (!(error instanceof EvaluationError)) {
-                throw new EvaluationError(_t("Error while executing search: ") + error.message);
+                throw new EvaluationError("#ERROR", _t("Error while executing search: ") + error.message);
             }
             throw error;
         }
-    },
+    }),
 });
 
 functionRegistry.add("IROKOO.GET_SUM", {
@@ -390,7 +403,7 @@ functionRegistry.add("IROKOO.GET_SUM", {
     ],
     category: "Odoo",
     returns: ["NUMBER"],
-    compute: function (model, field, ids) {
+    computeValueAndFormat: withArgValues(function (model, field, ids) {
         const _model = toString(model);
         const _field = toString(field);
         const idsStr = toString(ids);
@@ -476,7 +489,7 @@ functionRegistry.add("IROKOO.GET_SUM", {
             value: result.value,
             format: "#,##0.00", // Number format with 2 decimals
         };
-    }
+    }),
 });
 
 functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
@@ -491,7 +504,7 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
     ],
     category: "Odoo",
     returns: ["STRING"],
-    compute: function (model, group_by, aggregate_field, aggregate_function, filters, limit) {
+    computeValueAndFormat: withArgValues(function (model, group_by, aggregate_field, aggregate_function, filters, limit) {
         debugLog("GET_GROUPED_IDS - Starting with model:", model);
 
         // Convert arguments
@@ -890,7 +903,7 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
 
             return errorResult;
         }
-    }
+    }),
 });
 
 functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
@@ -902,7 +915,7 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
     ],
     category: "Odoo",
     returns: ["NUMBER"],
-    compute: function (model, field, filters) {
+    computeValueAndFormat: withArgValues(function (model, field, filters) {
         const _model = toString(model);
         const _field = toString(field);
         const filtersStr = toString(filters);
@@ -1100,7 +1113,7 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
         } catch (error) {
             return { value: 0, format: "#,##0.00" };
         }
-    }
+    }),
 });
 
 functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
@@ -1111,7 +1124,7 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
     ],
     category: "Odoo",
     returns: ["NUMBER"],
-    compute: function (model, filters) {
+    computeValueAndFormat: withArgValues(function (model, filters) {
         const _model = toString(model);
         const filtersStr = toString(filters);
 
@@ -1240,5 +1253,5 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
             debugLog("COUNT_BY_DOMAIN - Error:", error);
             return { value: 0, format: "#,##0" };
         }
-    }
+    }),
 });

@@ -9,6 +9,26 @@ export const DEBUG_FORMULAS = false;
 export const NO_RESULTS = "No results found";
 
 /**
+ * Server access of the formulas plugins, built on the data sources of the
+ * spreadsheet model (Odoo 17): the ORM, and a callback that re-evaluates the
+ * spreadsheet once a request is done.
+ *
+ * @param {object} config plugin configuration
+ * @returns {{orm: any, startLoadingCallback: (promise: Promise<any>) => void} | undefined}
+ */
+export function getServerData(config) {
+    const dataSources = config?.custom?.dataSources;
+    const orm = config?.custom?.env?.services.orm;
+    if (!dataSources || !orm) {
+        return undefined;
+    }
+    return {
+        orm: orm.silent,
+        startLoadingCallback: (promise) => dataSources.notifyWhenPromiseResolves(promise),
+    };
+}
+
+/**
  * Log in the browser console only when DEBUG_FORMULAS is enabled.
  */
 export function debugLog(...args) {

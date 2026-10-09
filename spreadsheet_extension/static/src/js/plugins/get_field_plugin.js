@@ -1,21 +1,20 @@
 /** @odoo-module */
 // @ts-check
 
-import { EvaluationError } from "@odoo/o-spreadsheet";
-import { OdooUIPlugin } from "@spreadsheet/plugins";
+import { EvaluationError, UIPlugin } from "@odoo/o-spreadsheet";
 import { LoadingDataError } from "@spreadsheet/o_spreadsheet/errors";
 import { _t } from "@web/core/l10n/translation";
-import { debugLog } from "../utils";
+import { debugLog, getServerData } from "../utils";
 
-export class GetFieldPlugin extends OdooUIPlugin {
+export class GetFieldPlugin extends UIPlugin {
     static getters = /** @type {const} */ ([
         "getFieldValue",
     ]);
 
     constructor(config) {
         super(config);
-        /** @type {import("@spreadsheet/data_sources/server_data").ServerData} */
-        this._serverData = config.custom.odooDataProvider?.serverData;
+        /** @type {ReturnType<typeof getServerData>} */
+        this._serverData = getServerData(config);
         this._cache = new Map();
         // Fields waiting to be read, by model: { ids: Set, fields: Set }
         this._pendingReads = {};
@@ -60,7 +59,7 @@ export class GetFieldPlugin extends OdooUIPlugin {
     get serverData() {
         if (!this._serverData) {
             throw new Error(
-                "'serverData' is not defined, please make sure a 'OdooDataProvider' instance is provided to the model."
+                "'serverData' is not defined, please make sure a 'DataSources' instance and the env are provided to the model."
             );
         }
         return this._serverData;
@@ -141,7 +140,7 @@ export class GetFieldPlugin extends OdooUIPlugin {
             }
             const message = error.data?.message || error.message;
             for (const id of ids) {
-                this._storeValue(modelName, id, fieldNames[0], new EvaluationError(message));
+                this._storeValue(modelName, id, fieldNames[0], new EvaluationError("#ERROR", message));
             }
         }
     }
@@ -152,9 +151,9 @@ export class GetFieldPlugin extends OdooUIPlugin {
             const record = recordsById.get(id);
             for (const fieldName of fieldNames) {
                 if (!record) {
-                    this._storeValue(modelName, id, fieldName, new EvaluationError(_t("Record not found")));
+                    this._storeValue(modelName, id, fieldName, new EvaluationError("#ERROR", _t("Record not found")));
                 } else if (record[fieldName] === undefined) {
-                    this._storeValue(modelName, id, fieldName, new EvaluationError(_t("Field not found")));
+                    this._storeValue(modelName, id, fieldName, new EvaluationError("#ERROR", _t("Field not found")));
                 } else {
                     let value = record[fieldName];
                     // Relational fields
