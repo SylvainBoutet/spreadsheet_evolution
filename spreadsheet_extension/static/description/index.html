@@ -1,26 +1,77 @@
 <section class="oe_container">
-    <div class="oe_row oe_spaced">
-        <h2 class="oe_slogan" style="color:#875A7B;">Formules Avancées pour Odoo Spreadsheet</h2>
-        <h3 class="oe_slogan">Exploitez pleinement vos données Odoo dans les spreadsheets</h3>
-        <div class="oe_demo oe_picture oe_screenshot">
-            <img src="banner.png">
+    <div class="oe_row oe_spaced text-center">
+        <h2 class="oe_slogan" style="color:#875A7B; font-size:2.4em; font-weight:700;">Spreadsheet Data Formulas</h2>
+        <h3 class="oe_slogan">Live Odoo data in your spreadsheets, one formula at a time</h3>
+        <p class="text-center" style="max-width:760px; margin:0 auto 16px;">
+            <b>Spreadsheet Data Formulas</b> pulls live Odoo data into spreadsheets and dashboards with
+            formulas: read a field, search records, then sum, count or group any model by filter.
+        </p>
+        <p class="text-center" style="max-width:760px; margin:0 auto 24px;">
+            A dashboard often needs one figure that no pivot or list gives directly: the name of a given
+            record, the total of a filtered set, the top groups of a model. Instead of exporting data and
+            pasting it into a sheet, type a formula in a cell: the value is read from Odoo when the
+            spreadsheet opens.
+        </p>
+        <div class="text-center">
+            <img class="img-fluid mx-auto d-block" src="main_screenshot.png"
+                 alt="Demo dashboard with the six IROKOO formulas and their results"
+                 style="max-width:100%; margin:0 auto; border:1px solid #ddd; border-radius:6px;">
         </div>
     </div>
 </section>
 
 <section class="oe_container oe_dark">
     <div class="oe_row oe_spaced">
-        <h2 class="oe_slogan" style="color:#875A7B;">Fonctionnalités</h2>
-        <div class="oe_span6">
-            <div class="oe_demo oe_picture oe_screenshot">
-                <img src="documentation/feature1.png">
-            </div>
+        <h3 class="oe_slogan">Key Features</h3>
+        <div class="oe_span12">
+            <table class="table table-sm" style="background:white;">
+                <tr><th>Formula</th><th>Returns</th></tr>
+                <tr><td><code>IROKOO.GET_FIELD(model, id, field)</code></td><td>The value of a field of one record</td></tr>
+                <tr><td><code>IROKOO.GET_IDS(model, order, direction, limit, filters)</code></td><td>The IDs of the matching records, comma-separated, sorted and limited</td></tr>
+                <tr><td><code>IROKOO.GET_SUM(model, field, ids)</code></td><td>The sum of a field over a list of IDs, for example the result of <code>GET_IDS</code></td></tr>
+                <tr><td><code>IROKOO.GET_GROUPED_IDS(model, group_by, field, function, filters, limit)</code></td><td>The values of the groups, ordered by their aggregate (sum, avg, count, min or max)</td></tr>
+                <tr><td><code>IROKOO.SUM_BY_DOMAIN(model, field, filters)</code></td><td>The sum of a field over the matching records</td></tr>
+                <tr><td><code>IROKOO.COUNT_BY_DOMAIN(model, filters)</code></td><td>The number of matching records</td></tr>
+            </table>
+            <ul class="list-unstyled">
+                <li><i class="fa fa-check text-primary"></i> Works on any model and any field, standard or custom</li>
+                <li><i class="fa fa-check text-primary"></i> Formulas can be nested: <code>GET_FIELD</code> on the ID returned by <code>GET_IDS</code>, <code>GET_SUM</code> on a cell holding IDs</li>
+                <li><i class="fa fa-check text-primary"></i> Arguments come from other cells, so a filter can follow a value typed in the sheet</li>
+                <li><i class="fa fa-check text-primary"></i> Argument help in the formula assistant, like the built-in functions</li>
+            </ul>
         </div>
-        <div class="oe_span6">
-            <p class="oe_mt32">
-                <strong>Accès direct aux données Odoo</strong><br/>
-                Récupérez facilement des valeurs, des listes d'IDs, calculez des sommes ou effectuez des regroupements
-                directement dans vos feuilles de calcul sans aucun export.
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h3 class="oe_slogan">Filters</h3>
+        <div class="oe_span12">
+            <p class="text-center">Filters are separated by semicolons, for example <code>partner_id=42;state:in:draft,sent</code>.</p>
+            <table class="table table-sm">
+                <tr><th>Syntax</th><th>Meaning</th></tr>
+                <tr><td><code>field=value</code></td><td>Equal (a value with <code>%</code> becomes a case-insensitive search)</td></tr>
+                <tr><td><code>field&gt;value</code>, <code>field&lt;value</code>, <code>field!=value</code></td><td>Comparisons</td></tr>
+                <tr><td><code>field~value</code></td><td>Contains, case-insensitive</td></tr>
+                <tr><td><code>field:operator:value</code></td><td>Any Odoo domain operator, for example <code>name:ilike:test</code></td></tr>
+                <tr><td><code>field:in:value1,value2</code></td><td>One of several values</td></tr>
+            </table>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h3 class="oe_slogan">Getting started</h3>
+        <div class="oe_span12">
+            <ol style="max-width:720px; margin:0 auto;">
+                <li>Install the module.</li>
+                <li>Open a spreadsheet, for example a dashboard of the Dashboards app.</li>
+                <li>Type a formula in a cell, for example <code>=IROKOO.COUNT_BY_DOMAIN("res.partner", "city=Lille")</code>.</li>
+                <li>With demo data, open <b>Dashboards &gt; IROKOO formulas examples</b>: one example per formula, with its result.</li>
+            </ol>
+            <p class="text-center" style="margin-top:1em;">
+                <a href="documentation/spreadsheet_formulas.pdf"><i class="fa fa-file-pdf-o"></i> Formula reference (PDF, French)</a>
             </p>
         </div>
     </div>
@@ -28,69 +79,44 @@
 
 <section class="oe_container">
     <div class="oe_row oe_spaced">
-        <div class="oe_span6">
-            <p class="oe_mt32">
-                <strong>Filtres puissants et flexibles</strong><br/>
-                Créez des tableaux de bord dynamiques avec des filtres sophistiqués. 
-                Utilisez des opérateurs de comparaison, des recherches multicritères, et 
-                même des opérateurs "in" pour filtrer sur des ensembles de valeurs.
-            </p>
-        </div>
-        <div class="oe_span6">
-            <div class="oe_demo oe_picture oe_screenshot">
-                <img src="documentation/feature2.png">
-            </div>
+        <h3 class="oe_slogan">Compatibility</h3>
+        <div class="oe_span12">
+            <ul class="list-unstyled" style="max-width:720px; margin:0 auto;">
+                <li><i class="fa fa-check text-primary"></i> Odoo 19.0, Community and Enterprise</li>
+                <li><i class="fa fa-check text-primary"></i> Depends on <code>spreadsheet</code> and <code>spreadsheet_dashboard</code></li>
+                <li><i class="fa fa-check text-primary"></i> No Python dependency, no external service: the formulas read the data of your Odoo</li>
+            </ul>
         </div>
     </div>
 </section>
 
 <section class="oe_container oe_dark">
     <div class="oe_row oe_spaced">
-        <h2 class="oe_slogan" style="color:#875A7B;">Liste des formules</h2>
-        <div class="oe_span12">
-            <div class="oe_demo oe_picture oe_screenshot">
-                <ul>
-                    <li><strong>IROKOO.GET_FIELD</strong> - Récupère la valeur d'un champ pour un enregistrement</li>
-                    <li><strong>IROKOO.GET_IDS</strong> - Obtient les IDs correspondant à des critères</li>
-                    <li><strong>IROKOO.GET_SUM</strong> - Calcule la somme d'un champ pour une liste d'IDs</li>
-                    <li><strong>IROKOO.GET_GROUPED_IDS</strong> - Regroupe les enregistrements par un champ</li>
-                    <li><strong>IROKOO.SUM_BY_DOMAIN</strong> - Calcule directement une somme avec un domaine</li>
-                </ul>
-            </div>
+        <h3 class="oe_slogan">FAQ</h3>
+        <div class="oe_span12" style="max-width:760px; margin:0 auto;">
+            <p><b>Can a user see data he is not allowed to read?</b><br/>
+                No. The formulas read the data with the access rights of the user who opens the
+                spreadsheet: record rules filter the results, and a model he may not read returns an
+                error instead of data.</p>
+            <p><b>Which names do the formulas expect?</b><br/>
+                Technical names: <code>sale.order</code> for the model, <code>amount_total</code> for the
+                field. They are shown in developer mode.</p>
+            <p><b>What does IROKOO.GET_GROUPED_IDS return?</b><br/>
+                The values of the groups (for example the partner IDs), sorted by their aggregate, highest
+                first. The aggregated amounts themselves come from <code>SUM_BY_DOMAIN</code> or
+                <code>COUNT_BY_DOMAIN</code> on each group.</p>
+            <p><b>How do I build a filter from a cell?</b><br/>
+                Concatenate in an intermediate cell, for example <code>="partner_id="&amp;B1</code>, and
+                pass that cell as the filter.</p>
         </div>
     </div>
 </section>
 
 <section class="oe_container">
     <div class="oe_row oe_spaced">
-        <h2 class="oe_slogan" style="color:#875A7B;">Documentation complète</h2>
-        <div class="oe_span12">
-            <p class="oe_mt32 text-center">
-                Une documentation complète est disponible <a href="https://github.com/irokoo/spreadsheet_evolution/">sur GitHub</a>
-                ou dans le fichier README.md du module.
-            </p>
+        <div class="alert alert-info text-center">
+            <p>This module is provided for educational purposes, without official support.</p>
+            <p>Questions and feedback: <a href="mailto:info@irokoo.fr">info@irokoo.fr</a></p>
         </div>
     </div>
 </section>
-
-<section class="oe_container oe_separator">
-</section>
-
-<section class="oe_container oe_dark">
-    <div class="oe_row oe_spaced">
-        <div class="oe_span6">
-            <h2 class="oe_slogan" style="color:#875A7B; text-align: left;">Support</h2>
-            <p class="oe_mt32">
-                Pour toute question ou support, contactez l'équipe IROKOO à l'adresse suivante :
-                <a href="mailto:info@irokoo.fr">info@irokoo.fr</a>
-            </p>
-        </div>
-        <div class="oe_span6">
-            <div class="oe_demo oe_picture oe_screenshot">
-                <a href="https://www.irokoo.fr">
-                    <img src="icon.png" width="200" height="200">
-                </a>
-            </div>
-        </div>
-    </div>
-</section> 
