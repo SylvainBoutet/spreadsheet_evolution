@@ -1,4 +1,10 @@
-# Documentation des formules Odoo Spreadsheet IROKOO
+# Spreadsheet Data Formulas (Odoo 18.0)
+
+Pull live Odoo data into spreadsheets and dashboards with formulas: read a field, search records, then sum, count or group any model by filter.
+
+Module `spreadsheet_extension`, branch `18.0` for Odoo 18.0, LGPL-3.
+
+## Documentation des formules (français)
 
 ## Introduction
 
