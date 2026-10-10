@@ -1,23 +1,19 @@
 {
-    "name": "Spreadsheet Extension",
+    "name": 'Spreadsheet Data Formulas',
+    "summary": 'Pull live Odoo data into spreadsheets and dashboards with formulas: read a field, search records, then sum, count or group any model by filter.',
+    "images": [
+        'static/description/banner.png',
+        'static/description/main_screenshot.png',
+    ],
     "author": "Sylvain Boutet",
     "website": "http://www.chti-tech.eu",
     "category": "Tools",
-    "version": "17.0.0.1.2",
+    "version": "17.0.0.1.3",
     "description": """
-Educational module that extends Odoo spreadsheets with custom formulas.
-
-Warning: this module is provided for educational purposes only.
-No official support is provided by the author.
-
-Features:
-
-- IROKOO.GET_FIELD formula to access field values
-- IROKOO.GET_IDS formula to search records
-- IROKOO.GET_SUM formula to compute sums
-- IROKOO.GET_GROUPED_IDS formula for groupings
-
-See README.md and EXAMPLES.md for the complete documentation.
+Adds IROKOO.* formulas to Odoo spreadsheets: read a field of a record, search
+record IDs, sum, count or group the records of any model matching filters. The
+formulas run with the access rights of the user who opens the spreadsheet.
+Provided for educational purposes, without official support.
 """,
     "license": "LGPL-3",
     "depends": [
