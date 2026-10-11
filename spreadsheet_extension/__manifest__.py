@@ -5,10 +5,10 @@
         'static/description/banner.png',
         'static/description/main_screenshot.png',
     ],
-    "author": "Sylvain Boutet",
+    "author": "IROKOO | CHTITECH",
     "website": "http://www.chti-tech.eu",
     "category": "Tools",
-    "version": "20.0.0.1.2",
+    "version": "20.0.0.1.3",
     "description": """
 Adds IROKOO.* formulas to Odoo spreadsheets: read a field of a record, search
 record IDs, sum, count or group the records of any model matching filters. The
