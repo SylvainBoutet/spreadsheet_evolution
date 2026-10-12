@@ -3,6 +3,7 @@
 import { _t } from "@web/core/l10n/translation";
 import * as spreadsheet from "@odoo/o-spreadsheet";
 import { EvaluationError } from "@odoo/o-spreadsheet";
+import { LoadingDataError } from "@spreadsheet/o_spreadsheet/errors";
 import { debugLog, NO_RESULTS } from "./utils";
 
 const { functionRegistry } = spreadsheet.registries;
@@ -502,21 +503,6 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
         const filtersStr = toString(filters || "");
         const _limit = Number.isNaN(toNumber(limit, this.locale)) ? 0 : toNumber(limit, this.locale);
 
-        // Cache keyed on the parameters to avoid redundant requests
-        const cacheKey = `${_model}_${_group_by}_${_aggregate_field}_${_aggregate_function}_${filtersStr}_${_limit}`;
-
-        // Create the cache if needed
-        if (!this._groupedIdsCache) {
-            this._groupedIdsCache = {};
-        }
-
-        // Use the cached result when available
-        if (this._groupedIdsCache[cacheKey] &&
-            this._groupedIdsCache[cacheKey].timestamp > Date.now() - 30000) { // 30 seconds cache
-            debugLog("GET_GROUPED_IDS - Using cached result for:", cacheKey);
-            return this._groupedIdsCache[cacheKey].result;
-        }
-
         // Build domain from filter string
         const domain = [];
 
@@ -590,54 +576,9 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
         try {
             // Main search to get all records
             const result = this.getters.searchRecords(_model, domain, { limit: 2000 });
-
-            // Loading state management
             if (result.requiresRefresh) {
-                // Check whether usable partial data is available
-                if (result.value && (typeof result.value === 'string' || (Array.isArray(result.value) && result.value.length > 0))) {
-                    debugLog(`GET_GROUPED_IDS - Data loading, continuing with partial data`);
-
-                    // Store this state in the cache as a partial result
-                    const partialResult = {
-                        value: Array.isArray(result.value) ? result.value.join(',') : result.value,
-                        format: "@",
-                        requiresRefresh: true
-                    };
-
-                    this._groupedIdsCache[cacheKey] = {
-                        result: partialResult,
-                        timestamp: Date.now() - 25000 // Quick expiration to force a refresh soon
-                    };
-
-                    // Continue with the partial data
-                } else {
-                    debugLog(`GET_GROUPED_IDS - Still loading data, no partial results available`);
-
-                    // Return the cached result if any, otherwise a loading message
-                    if (this._groupedIdsCache[cacheKey]) {
-                        debugLog(`GET_GROUPED_IDS - Using cached result during refresh`);
-                        const cachedResult = this._groupedIdsCache[cacheKey].result;
-                        return {
-                            value: cachedResult.value,
-                            format: cachedResult.format,
-                            requiresRefresh: true
-                        };
-                    }
-
-                    const loadingResult = {
-                        value: "Loading data...",
-                        format: "@",
-                        requiresRefresh: true
-                    };
-
-                    // Store this loading state in the cache
-                    this._groupedIdsCache[cacheKey] = {
-                        result: loadingResult,
-                        timestamp: Date.now() - 25000 // Quick expiration
-                    };
-
-                    return loadingResult;
-                }
+                // The ids are being fetched: the cell is evaluated again once they are received
+                throw new LoadingDataError();
             }
 
             // Process IDs - handle both string and array formats
@@ -653,138 +594,102 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                 return { value: NO_RESULTS, format: "@" };
             }
 
-            // Group records by the specified field
+            // Group records by the specified field. The values not read yet are all
+            // requested during this pass, then the cell waits for them.
             const groups = {};
+            let loading = false;
 
             for (const id of ids) {
+                let groupFieldValue;
+                let aggregateValue;
+                let unreadable = false;
                 try {
-                    // Get group field value with proper error handling
-                    let groupFieldValue;
-                    try {
-                        groupFieldValue = this.getters.getFieldValue(_model, id, _group_by);
-                    } catch (fieldError) {
-                        // If we get a loading error, request refresh
-                        if (fieldError.name === "LoadingDataError" ||
-                            (fieldError.message && fieldError.message.includes("Loading"))) {
-                            // Some records were already processed: continue instead of reloading
-                            if (Object.keys(groups).length > 0) {
-                                debugLog(`GET_GROUPED_IDS - Loading error for record ${id}, continuing`);
-                                continue;
-                            }
-
-                            // Otherwise request a refresh
-                            debugLog(`GET_GROUPED_IDS - Loading error for group values, requesting refresh`);
-                            return { value: "Loading group values...", format: "@", requiresRefresh: true };
-                        }
-                        // Otherwise skip this record
-                        continue;
-                    }
-
-                    // Get aggregate field value with proper error handling
-                    let aggregateValue;
-                    try {
-                        aggregateValue = this.getters.getFieldValue(_model, id, _aggregate_field);
-                    } catch (fieldError) {
-                        // If we get a loading error, request refresh
-                        if (fieldError.name === "LoadingDataError" ||
-                            (fieldError.message && fieldError.message.includes("Loading"))) {
-                            // Some records were already processed: continue instead of reloading
-                            if (Object.keys(groups).length > 0) {
-                                debugLog(`GET_GROUPED_IDS - Loading error for record ${id}, continuing`);
-                                continue;
-                            }
-
-                            // Otherwise request a refresh
-                            debugLog(`GET_GROUPED_IDS - Loading error for aggregate values, requesting refresh`);
-                            return { value: "Loading aggregate values...", format: "@", requiresRefresh: true };
-                        }
-                        // Otherwise skip this record
-                        continue;
-                    }
-
-                    // Extract group value with thorough handling of different field types
-                    let groupValue;
-
-                    if (Array.isArray(groupFieldValue) && groupFieldValue.length > 0) {
-                        // Format many2one [id, name]
-                        groupValue = groupFieldValue[0];
-                    } else if (typeof groupFieldValue === 'object' && groupFieldValue !== null) {
-                        if (groupFieldValue.id !== undefined) {
-                            // Format {id: x, display_name: y}
-                            groupValue = groupFieldValue.id;
-                        } else if (groupFieldValue.value !== undefined) {
-                            // Some fields return {value: x, ...}
-                            groupValue = groupFieldValue.value;
-                        } else {
-                            // Just use the object as is
-                            groupValue = JSON.stringify(groupFieldValue);
-                        }
+                    groupFieldValue = this.getters.getFieldValue(_model, id, _group_by);
+                } catch (fieldError) {
+                    if (fieldError instanceof LoadingDataError) {
+                        loading = true;
                     } else {
-                        // Direct value (string, number, boolean)
-                        groupValue = groupFieldValue;
+                        // Skip the records whose value cannot be read
+                        unreadable = true;
                     }
-
-                    // Skip null/undefined values
-                    if (groupValue === null || groupValue === undefined) continue;
-
-                    // Convert aggregate value to number if possible
-                    let numValue = null;
-
-                    if (typeof aggregateValue === 'number') {
-                        numValue = aggregateValue;
-                    } else if (typeof aggregateValue === 'string' && !isNaN(parseFloat(aggregateValue))) {
-                        numValue = parseFloat(aggregateValue);
-                    } else if (Array.isArray(aggregateValue) && aggregateValue.length > 0) {
-                        // For relational fields, count the items
-                        numValue = aggregateValue.length;
-                    } else if (typeof aggregateValue === 'object' && aggregateValue !== null) {
-                        // For object values, try to extract a number
-                        if (aggregateValue.value !== undefined && !isNaN(parseFloat(aggregateValue.value))) {
-                            numValue = parseFloat(aggregateValue.value);
-                        }
+                }
+                try {
+                    aggregateValue = this.getters.getFieldValue(_model, id, _aggregate_field);
+                } catch (fieldError) {
+                    if (fieldError instanceof LoadingDataError) {
+                        loading = true;
+                    } else {
+                        unreadable = true;
                     }
-
-                    // If no numeric value and function is not 'count', skip record
-                    if (numValue === null && _aggregate_function !== 'count') continue;
-
-                    // Initialize group if it doesn't exist
-                    const groupKey = String(groupValue);
-                    if (!groups[groupKey]) {
-                        groups[groupKey] = {
-                            value: groupValue,
-                            values: []
-                        };
-                    }
-
-                    // For COUNT, always count 1
-                    if (_aggregate_function === 'count') {
-                        groups[groupKey].values.push(1);
-                    } else if (numValue !== null) {
-                        groups[groupKey].values.push(numValue);
-                    }
-                } catch (recordError) {
-                    // If we get a loading error, request refresh
-                    if (recordError.name === "LoadingDataError" ||
-                        (recordError.message && recordError.message.includes("Loading"))) {
-                        // Enough records processed: continue with what we have
-                        if (Object.keys(groups).length >= Math.max(5, _limit)) {
-                            debugLog(`GET_GROUPED_IDS - Loading error but enough groups, continuing`);
-                            break;
-                        }
-
-                        // Some groups exist: continue with the next records
-                        if (Object.keys(groups).length > 0) {
-                            debugLog(`GET_GROUPED_IDS - Loading error for record ${id}, continuing with next record`);
-                            continue;
-                        }
-
-                        debugLog(`GET_GROUPED_IDS - Loading error for record data, requesting refresh`);
-                        return { value: "Loading record data...", format: "@", requiresRefresh: true };
-                    }
-                    // Otherwise just continue with next record
-                    debugLog(`GET_GROUPED_IDS - Error processing record ID=${id}:`, recordError);
+                }
+                if (loading || unreadable) {
                     continue;
                 }
+
+                // Extract group value with thorough handling of different field types
+                let groupValue;
+
+                if (Array.isArray(groupFieldValue) && groupFieldValue.length > 0) {
+                    // Format many2one [id, name]
+                    groupValue = groupFieldValue[0];
+                } else if (typeof groupFieldValue === 'object' && groupFieldValue !== null) {
+                    if (groupFieldValue.id !== undefined) {
+                        // Format {id: x, display_name: y}
+                        groupValue = groupFieldValue.id;
+                    } else if (groupFieldValue.value !== undefined) {
+                        // Some fields return {value: x, ...}
+                        groupValue = groupFieldValue.value;
+                    } else {
+                        // Just use the object as is
+                        groupValue = JSON.stringify(groupFieldValue);
+                    }
+                } else {
+                    // Direct value (string, number, boolean)
+                    groupValue = groupFieldValue;
+                }
+
+                // Skip null/undefined values
+                if (groupValue === null || groupValue === undefined) continue;
+
+                // Convert aggregate value to number if possible
+                let numValue = null;
+
+                if (typeof aggregateValue === 'number') {
+                    numValue = aggregateValue;
+                } else if (typeof aggregateValue === 'string' && !isNaN(parseFloat(aggregateValue))) {
+                    numValue = parseFloat(aggregateValue);
+                } else if (Array.isArray(aggregateValue) && aggregateValue.length > 0) {
+                    // For relational fields, count the items
+                    numValue = aggregateValue.length;
+                } else if (typeof aggregateValue === 'object' && aggregateValue !== null) {
+                    // For object values, try to extract a number
+                    if (aggregateValue.value !== undefined && !isNaN(parseFloat(aggregateValue.value))) {
+                        numValue = parseFloat(aggregateValue.value);
+                    }
+                }
+
+                // If no numeric value and function is not 'count', skip record
+                if (numValue === null && _aggregate_function !== 'count') continue;
+
+                // Initialize group if it doesn't exist
+                const groupKey = String(groupValue);
+                if (!groups[groupKey]) {
+                    groups[groupKey] = {
+                        value: groupValue,
+                        values: []
+                    };
+                }
+
+                // For COUNT, always count 1
+                if (_aggregate_function === 'count') {
+                    groups[groupKey].values.push(1);
+                } else if (numValue !== null) {
+                    groups[groupKey].values.push(numValue);
+                }
+            }
+
+            if (loading) {
+                throw new LoadingDataError();
             }
 
             // If no groups were created
@@ -836,59 +741,14 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
             const groupValues = limitedGroups.map(g => g.groupValue);
             debugLog("GET_GROUPED_IDS - Result:", groupValues);
 
-            const finalResult = { value: groupValues.join(','), format: "@" };
-
-            // Cache the result with a timestamp
-            this._groupedIdsCache[cacheKey] = {
-                result: finalResult,
-                timestamp: Date.now()
-            };
-
-            return finalResult;
+            return { value: groupValues.join(','), format: "@" };
 
         } catch (e) {
-            // Global error handler
-
-            // If data is still loading, return loading indicator
-            if (e.name === "LoadingDataError" || (e.message && e.message.includes("Loading"))) {
-                // Check if we have cached result
-                if (this._groupedIdsCache[cacheKey]) {
-                    debugLog(`GET_GROUPED_IDS - Loading data, using cached result`);
-                    const cachedResult = this._groupedIdsCache[cacheKey].result;
-
-                    return {
-                        value: cachedResult.value,
-                        format: cachedResult.format,
-                        requiresRefresh: true
-                    };
-                }
-
-                const loadingResult = {
-                    value: "Loading data...",
-                    format: "@",
-                    requiresRefresh: true
-                };
-
-                // Store the loading state in the cache
-                this._groupedIdsCache[cacheKey] = {
-                    result: loadingResult,
-                    timestamp: Date.now() - 25000 // Quick expiration
-                };
-
-                return loadingResult;
+            if (e instanceof LoadingDataError) {
+                throw e;
             }
-
-            // Otherwise return error message
             debugLog("GET_GROUPED_IDS - Error:", e);
-            const errorResult = { value: "Error: " + e.message, format: "@" };
-
-            // Cache the error result briefly to prevent constant recalculation
-            this._groupedIdsCache[cacheKey] = {
-                result: errorResult,
-                timestamp: Date.now() - 20000 // Cache for 10 seconds only
-            };
-
-            return errorResult;
+            return { value: "Error: " + e.message, format: "@" };
         }
     }
 });
