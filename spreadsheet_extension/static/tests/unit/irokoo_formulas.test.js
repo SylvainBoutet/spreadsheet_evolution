@@ -1,6 +1,6 @@
 /** @odoo-module */
 
-import { nextTick } from "@web/../tests/helpers/utils";
+import { makeDeferred, nextTick } from "@web/../tests/helpers/utils";
 import { setCellContent } from "@spreadsheet/../tests/utils/commands";
 import { getEvaluatedCell } from "@spreadsheet/../tests/utils/getters";
 import { createModelWithDataSource } from "@spreadsheet/../tests/utils/model";
@@ -143,6 +143,34 @@ QUnit.module("IROKOO formulas", {}, () => {
             "41"
         );
     });
+
+    QUnit.test(
+        "IROKOO.GET_GROUPED_IDS shows the loading state until the field values are read",
+        async (assert) => {
+            // Hold the read of the field values: the ids are known, the values are not
+            const readDone = makeDeferred();
+            const model = await createModelWithDataSource({
+                serverData: getServerData(),
+                mockRPC: async function (route, args) {
+                    if (args.model === "irk.partner" && args.method === "read") {
+                        await readDone;
+                    }
+                },
+            });
+            setCellContent(
+                model,
+                "A1",
+                '=IROKOO.GET_GROUPED_IDS("irk.partner", "product_id", "foo", "sum", "", 0)'
+            );
+            for (let i = 0; i < 10; i++) {
+                await nextTick();
+            }
+            assert.strictEqual(getEvaluatedCell(model, "A1").value, "Loading...");
+            readDone.resolve();
+            await waitForFormulasData(model);
+            assert.strictEqual(getEvaluatedCell(model, "A1").value, "41,37");
+        }
+    );
 
     QUnit.test("IROKOO.SUM_BY_DOMAIN sums a field for the records matching the filters", async (assert) => {
         assert.strictEqual(
