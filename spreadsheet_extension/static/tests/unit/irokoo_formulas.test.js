@@ -4,7 +4,8 @@ import { setCellContent } from "@spreadsheet/../tests/helpers/commands";
 import { defineSpreadsheetModels } from "@spreadsheet/../tests/helpers/data";
 import { getEvaluatedCell } from "@spreadsheet/../tests/helpers/getters";
 import { createModelWithDataSource } from "@spreadsheet/../tests/helpers/model";
-import { defineModels, fields, models } from "@web/../tests/web_test_helpers";
+import { defineModels, fields, models, onRpc } from "@web/../tests/web_test_helpers";
+import { Deferred } from "@web/core/utils/concurrency";
 
 describe.current.tags("headless");
 
@@ -124,6 +125,27 @@ test("IROKOO.GET_GROUPED_IDS counts and applies the limit", async () => {
             '=IROKOO.GET_GROUPED_IDS("irk.partner", "product_id", "foo", "count", "", 1)'
         )
     ).toBe("41");
+});
+
+test("IROKOO.GET_GROUPED_IDS shows the loading state until the field values are read", async () => {
+    // Hold the read of the field values: the ids are known, the values are not
+    const readDone = new Deferred();
+    onRpc("irk.partner", "read", async () => {
+        await readDone;
+    });
+    const model = await createModelWithDataSource();
+    setCellContent(
+        model,
+        "A1",
+        '=IROKOO.GET_GROUPED_IDS("irk.partner", "product_id", "foo", "sum", "", 0)'
+    );
+    for (let i = 0; i < 10; i++) {
+        await animationFrame();
+    }
+    expect(getEvaluatedCell(model, "A1").value).toBe("Loading...");
+    readDone.resolve();
+    await waitForFormulasData(model);
+    expect(getEvaluatedCell(model, "A1").value).toBe("41,37");
 });
 
 test("IROKOO.SUM_BY_DOMAIN sums a field for the records matching the filters", async () => {
