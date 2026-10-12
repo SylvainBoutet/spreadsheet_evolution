@@ -8,7 +8,7 @@
     "author": "IROKOO | CHTITECH",
     "website": "http://www.chti-tech.eu",
     "category": "Tools",
-    "version": "19.0.0.1.3",
+    "version": "19.0.0.1.4",
     "description": """
 Adds IROKOO.* formulas to Odoo spreadsheets: read a field of a record, search
 record IDs, sum, count or group the records of any model matching filters. The
