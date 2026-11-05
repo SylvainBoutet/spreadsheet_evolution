@@ -83,6 +83,22 @@ Effectue des regroupements avec agrégation.
 =IROKOO.GET_GROUPED_IDS("sale.order", "state", "amount_total", "sum", "date_order>2024-01-01", 5)
 ```
 
+### `IROKOO.SUM_BY_DOMAIN(model, field, filters)`
+Calcule la somme d'un champ pour les enregistrements correspondant aux filtres.
+
+**Exemple :**
+```
+=IROKOO.SUM_BY_DOMAIN("sale.order", "amount_total", "state=sale;partner_id!=42")
+```
+
+### `IROKOO.COUNT_BY_DOMAIN(model, filters)`
+Compte les enregistrements correspondant aux filtres.
+
+**Exemple :**
+```
+=IROKOO.COUNT_BY_DOMAIN("res.partner", "city=Lille")
+```
+
 ## 🏗️ Architecture Technique
 
 ### Structure du Module

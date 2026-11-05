@@ -55,6 +55,20 @@ function parseDomainFilter(filterStr) {
         return [field, 'ilike', value];
     }
 
+    // Format "field!=value", tested before "=" which it contains
+    if (filterStr.includes('!=')) {
+        const parts = filterStr.split('!=');
+        field = parts[0].trim();
+        value = parts.slice(1).join('!=').trim();
+
+        // Convert to a number when possible
+        if (!isNaN(parseFloat(value))) {
+            value = parseFloat(value);
+        }
+
+        return [field, '!=', value];
+    }
+
     // Detect a LIKE/ILIKE search with %
     const hasPercentage = filterStr.includes('%');
 
@@ -93,19 +107,8 @@ function parseDomainFilter(filterStr) {
         return [field, '<', value];
     }
 
-    // Format "field!=value" or "field!value"
-    if (filterStr.includes('!=')) {
-        const parts = filterStr.split('!=');
-        field = parts[0].trim();
-        value = parts.slice(1).join('!=').trim();
-
-        // Convert to a number when possible
-        if (!isNaN(parseFloat(value))) {
-            value = parseFloat(value);
-        }
-
-        return [field, '!=', value];
-    } else if (filterStr.includes('!')) {
+    // Format "field!value"
+    if (filterStr.includes('!')) {
         const parts = filterStr.split('!');
         field = parts[0].trim();
         value = parts.slice(1).join('!').trim();
@@ -239,6 +242,14 @@ functionRegistry.add("IROKOO.GET_IDS", {
                 return [field, 'ilike', value];
             }
 
+            // Format "field!=value", tested before "=" which it contains
+            if (filterStr.includes('!=')) {
+                const parts = filterStr.split('!=');
+                field = parts[0].trim();
+                value = parts.slice(1).join('!=').trim();
+                return [field, '!=', value];
+            }
+
             // Detect a LIKE/ILIKE search with %
             const hasPercentage = filterStr.includes('%');
 
@@ -272,13 +283,8 @@ functionRegistry.add("IROKOO.GET_IDS", {
                 return [field, '<', value];
             }
 
-            // Format "field!=value" or "field!value"
-            if (filterStr.includes('!=')) {
-                const parts = filterStr.split('!=');
-                field = parts[0].trim();
-                value = parts.slice(1).join('!=').trim();
-                return [field, '!=', value];
-            } else if (filterStr.includes('!')) {
+            // Format "field!value"
+            if (filterStr.includes('!')) {
                 const parts = filterStr.split('!');
                 field = parts[0].trim();
                 value = parts.slice(1).join('!').trim();
@@ -535,6 +541,16 @@ functionRegistry.add("IROKOO.GET_GROUPED_IDS", {
                         }
                         continue; // Skip further processing for this filter
                     }
+                }
+
+                // Format "field!=value", tested before "=" which it contains
+                if (trimmedFilter.includes('!=')) {
+                    const parts = trimmedFilter.split('!=');
+                    const field = parts[0].trim();
+                    const value = parts.slice(1).join('!=').trim();
+                    const parsedValue = !isNaN(Number(value)) ? Number(value) : value;
+                    domain.push([field, '!=', parsedValue]);
+                    continue;
                 }
 
                 // Handle comparison operators
@@ -802,6 +818,16 @@ functionRegistry.add("IROKOO.SUM_BY_DOMAIN", {
                     }
                 }
 
+                // Format "field!=value", tested before "=" which it contains
+                if (trimmedFilter.includes('!=')) {
+                    const parts = trimmedFilter.split('!=');
+                    const field = parts[0].trim();
+                    const value = parts.slice(1).join('!=').trim();
+                    const parsedValue = !isNaN(Number(value)) ? Number(value) : value;
+                    domain.push([field, '!=', parsedValue]);
+                    continue;
+                }
+
                 // Handle comparison operators
                 if (trimmedFilter.includes('>')) {
                     const parts = trimmedFilter.split('>');
@@ -1008,6 +1034,16 @@ functionRegistry.add("IROKOO.COUNT_BY_DOMAIN", {
                         }
                         continue; // Skip further processing for this filter
                     }
+                }
+
+                // Format "field!=value", tested before "=" which it contains
+                if (trimmedFilter.includes('!=')) {
+                    const parts = trimmedFilter.split('!=');
+                    const field = parts[0].trim();
+                    const value = parts.slice(1).join('!=').trim();
+                    const parsedValue = !isNaN(Number(value)) ? Number(value) : value;
+                    domain.push([field, '!=', parsedValue]);
+                    continue;
                 }
 
                 // Handle comparison operators
