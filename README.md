@@ -112,6 +112,24 @@ Calcule directement la somme d'un champ pour les enregistrements correspondant �
 =IROKOO.SUM_BY_DOMAIN("sale.order", "amount_total", "partner_id=42;state:in:draft,sent")
 ```
 
+### IROKOO.COUNT_BY_DOMAIN
+
+Compte les enregistrements correspondant à un domaine.
+
+**Syntaxe:**
+```
+=IROKOO.COUNT_BY_DOMAIN(model, filters)
+```
+
+**Paramètres:**
+- `model` (texte): Nom technique du modèle (ex: "res.partner")
+- `filters` (texte): Filtres séparés par des points-virgules
+
+**Exemple:**
+```
+=IROKOO.COUNT_BY_DOMAIN("res.partner", "city=Lille")
+```
+
 ## Syntaxe des filtres
 
 Les filtres supportent plusieurs formats :

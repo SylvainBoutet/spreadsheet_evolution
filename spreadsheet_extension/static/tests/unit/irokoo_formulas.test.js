@@ -160,3 +160,27 @@ test("IROKOO.COUNT_BY_DOMAIN counts the records matching the filters", async () 
 test("IROKOO.COUNT_BY_DOMAIN supports the 'field!value' filter", async () => {
     expect(await evaluateFormula('=IROKOO.COUNT_BY_DOMAIN("irk.partner", "foo!2")')).toBe(3);
 });
+
+test("IROKOO.COUNT_BY_DOMAIN supports the 'field!=value' filter", async () => {
+    expect(await evaluateFormula('=IROKOO.COUNT_BY_DOMAIN("irk.partner", "foo!=2")')).toBe(3);
+});
+
+test("IROKOO.SUM_BY_DOMAIN supports the 'field!=value' filter", async () => {
+    expect(
+        await evaluateFormula('=IROKOO.SUM_BY_DOMAIN("irk.partner", "probability", "product_id!=37")')
+    ).toBe(121);
+});
+
+test("IROKOO.GET_IDS supports the 'field!=value' filter", async () => {
+    expect(
+        await evaluateFormula('=IROKOO.GET_IDS("irk.partner", "id", "asc", 0, "name!=D")')
+    ).toBe("1,2,3");
+});
+
+test("IROKOO.GET_GROUPED_IDS supports the 'field!=value' filter", async () => {
+    expect(
+        await evaluateFormula(
+            '=IROKOO.GET_GROUPED_IDS("irk.partner", "product_id", "foo", "count", "product_id!=37", 0)'
+        )
+    ).toBe("41");
+});

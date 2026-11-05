@@ -5,13 +5,16 @@
         'static/description/banner.png',
         'static/description/main_screenshot.png',
     ],
-    "author": "IROKOO | CHTITECH",
+    "author": 'IROKOO | CHTI-TECH | Sylvain Boutet',
     "website": "http://www.chti-tech.eu",
     "category": "Tools",
-    "version": "20.0.0.1.4",
+    "version": "20.0.0.2.0",
     "description": """
-Adds IROKOO.* formulas to Odoo spreadsheets: read a field of a record, search
-record IDs, sum, count or group the records of any model matching filters. The
+Adds six IROKOO.* formulas to Odoo spreadsheets: IROKOO.GET_FIELD (a field of
+a record), IROKOO.GET_IDS (the IDs of the records matching filters),
+IROKOO.GET_SUM (the sum of a field over a list of IDs), IROKOO.GET_GROUPED_IDS
+(groups ordered by an aggregate), IROKOO.SUM_BY_DOMAIN and
+IROKOO.COUNT_BY_DOMAIN (sum and count of the records matching filters). The
 formulas run with the access rights of the user who opens the spreadsheet.
 Provided for educational purposes, without official support.
 """,
